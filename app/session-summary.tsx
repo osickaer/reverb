@@ -1,15 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { loadSession, DailySession } from '../utils/storage';
 
 export default function SessionSummaryScreen() {
   const router = useRouter();
+  const [session, setSession] = useState<DailySession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const s = await loadSession();
+      setSession(s);
+      setLoading(false);
+    };
+    fetchSession();
+  }, []);
+
+  if (loading || !session) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  const { score, questionIds } = session;
+  const total = questionIds.length;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Session Summary</Text>
+      <Text style={styles.title}>Session Complete!</Text>
+      <Text style={styles.scoreText}>
+        You scored {score} out of {total}
+      </Text>
       <Text style={styles.placeholderText}>
-        This is the Session Summary Screen. Here you'll see how you performed in this round.
+        Great job showing up today and stretching your knowledge.
       </Text>
       <Button title="Back to Home" onPress={() => router.replace('/')} />
     </View>
@@ -27,6 +53,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  scoreText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#007AFF',
     marginBottom: 16,
   },
   placeholderText: {
