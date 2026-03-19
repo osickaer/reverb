@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { loadSession, DailySession } from '../utils/storage';
+import { Colors, FontSize, FontWeight, Spacing } from '../constants/theme';
+import { ScreenContainer } from '@/components/screen-container';
 
 export default function SessionSummaryScreen() {
   const router = useRouter();
@@ -19,9 +21,9 @@ export default function SessionSummaryScreen() {
 
   if (loading || !session) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ScreenContainer style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </ScreenContainer>
     );
   }
 
@@ -29,42 +31,42 @@ export default function SessionSummaryScreen() {
   const total = questionIds.length;
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <Text style={styles.title}>Session Complete!</Text>
       <Text style={styles.scoreText}>
         You scored {score} out of {total}
       </Text>
-      <Text style={styles.placeholderText}>
+      <Text style={styles.bodyText}>
         Great job showing up today and stretching your knowledge.
       </Text>
       <Button title="Back to Home" onPress={() => router.replace('/')} />
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: Spacing.screen,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    marginBottom: Spacing.base,
+    color: Colors.textPrimary,
   },
   scoreText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginBottom: 16,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.semibold,
+    color: Colors.primary,
+    marginBottom: Spacing.base,
   },
-  placeholderText: {
-    fontSize: 16,
+  bodyText: {
+    fontSize: FontSize.md,
     textAlign: 'center',
-    marginBottom: 32,
-    color: '#666',
+    marginBottom: Spacing.xxl,
+    color: Colors.textTertiary,
   },
 });

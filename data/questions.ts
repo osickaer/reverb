@@ -336,7 +336,7 @@ export const seedQuestions: Question[] = [
     domain: "Mathematics",
     subdomain: "Arithmetic",
     difficulty: "easy",
-    prompt: "What is 12 × 8?",
+    prompt: "What is 12 * 8?",
     choices: ["84", "92", "96", "108"],
     correctIndex: 2,
     explanation: "12 multiplied by 8 equals 96.",

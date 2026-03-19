@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { DailySession, initDailySessionIfNeeded, loadSession } from '../../utils/storage';
+import { Colors, CommonStyles, FontSize, FontWeight, Spacing, Radius } from '../../constants/theme';
+import { ScreenContainer } from '@/components/screen-container';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -23,21 +25,21 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ScreenContainer style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </ScreenContainer>
     );
   }
 
   const handleStart = () => {
     if (session?.status === 'completed') {
-      return; // Can't start a completed session
+      return;
     }
     router.push('/quiz');
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <Text style={styles.title}>Reverb</Text>
       <Text style={styles.subtitle}>Daily Knowledge Fitness</Text>
       
@@ -66,53 +68,52 @@ export default function HomeScreen() {
           </>
         )}
       </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: Spacing.screen,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: FontSize.xxxl,
+    fontWeight: FontWeight.bold,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
+    color: Colors.textPrimary,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 48,
+    fontSize: FontSize.md + 2,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.xxl + 16,
   },
   card: {
+    ...CommonStyles.card,
     width: '100%',
-    padding: 24,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.border,
   },
   cardTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 16,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.heavy,
+    marginBottom: Spacing.base,
+    color: Colors.textPrimary,
   },
   cardDesc: {
-    fontSize: 16,
+    fontSize: FontSize.md,
     textAlign: 'center',
-    marginBottom: 24,
-    color: '#495057',
+    marginBottom: Spacing.xl,
+    color: Colors.textSecondary,
   },
   scoreText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 16,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    color: Colors.primary,
+    marginBottom: Spacing.base,
   },
 });

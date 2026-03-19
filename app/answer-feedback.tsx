@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { seedQuestions } from '../data/questions';
-import { loadSession, saveSession, updateMissedQuestions, DailySession, completeSession } from '../utils/storage';
+import { loadSession, saveSession, updateQuestionStats, DailySession, completeSession } from '../utils/storage';
+import { Colors, FontSize, FontWeight, Spacing } from '../constants/theme';
+import { ScreenContainer } from '@/components/screen-container';
 
 export default function AnswerFeedbackScreen() {
   const router = useRouter();
@@ -34,15 +36,12 @@ export default function AnswerFeedbackScreen() {
       
       const isCorrect = selectedIndex === question.correctIndex;
       
-      // Update session state
       currentSession.status = 'in-progress';
       if (isCorrect) {
         currentSession.score += 1;
       }
       
-      await updateMissedQuestions(question.id, !isCorrect);
-      
-      // We will increment currentIndex when they press "Next"
+      await updateQuestionStats(question.id, isCorrect);
       
       setUpdatedSession(currentSession);
       setLoading(false);
@@ -53,9 +52,9 @@ export default function AnswerFeedbackScreen() {
 
   if (loading || !session || !updatedSession) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ScreenContainer style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </ScreenContainer>
     );
   }
 
@@ -80,7 +79,7 @@ export default function AnswerFeedbackScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <Text style={[styles.title, isCorrect ? styles.correctText : styles.wrongText]}>
         {isCorrect ? 'Correct!' : 'Incorrect'}
       </Text>
@@ -101,46 +100,45 @@ export default function AnswerFeedbackScreen() {
           onPress={handleNext} 
         />
       </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: Spacing.screen,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    marginBottom: Spacing.base,
   },
   correctText: {
-    color: '#4CAF50',
+    color: Colors.correct,
   },
   wrongText: {
-    color: '#F44336',
+    color: Colors.incorrect,
   },
   correctAnswerInfo: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    marginBottom: Spacing.base,
     textAlign: 'center',
-    color: '#333',
+    color: Colors.textSecondary,
   },
   explanation: {
-    fontSize: 16,
+    fontSize: FontSize.md,
     textAlign: 'center',
-    marginBottom: 32,
-    color: '#666',
+    marginBottom: Spacing.xxl,
+    color: Colors.textTertiary,
     lineHeight: 24,
   },
   buttonContainer: {
-    marginVertical: 8,
+    marginVertical: Spacing.sm,
     width: '100%',
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing.xxl,
   },
 });
