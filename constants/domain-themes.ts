@@ -6,11 +6,9 @@
  */
 
 import {
-  Atom,
   BookOpen,
+  BookText,
   Globe,
-  Laptop,
-  Calculator,
   type LucideIcon,
 } from "lucide-react-native";
 
@@ -24,11 +22,6 @@ export interface DomainTheme {
 }
 
 export const domainThemes: Record<string, DomainTheme> = {
-  Science: {
-    icon: Atom,
-    accent: "#6C5CE7",
-    tint: "#F0EEFF",
-  },
   History: {
     icon: BookOpen,
     accent: "#D4710B",
@@ -39,15 +32,10 @@ export const domainThemes: Record<string, DomainTheme> = {
     accent: "#00A676",
     tint: "#EAFAF4",
   },
-  Technology: {
-    icon: Laptop,
-    accent: "#0984E3",
-    tint: "#EBF5FF",
-  },
-  Mathematics: {
-    icon: Calculator,
-    accent: "#E84393",
-    tint: "#FFF0F7",
+  Vocabulary: {
+    icon: BookText,
+    accent: "#6C5CE7",
+    tint: "#F0EEFF",
   },
 };
 

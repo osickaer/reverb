@@ -1,12 +1,13 @@
 import { ScreenContainer } from "@/components/screen-container";
 import { getThemeForDomain } from "@/constants/domain-themes";
-import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import { Check, X } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Button,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -107,9 +108,8 @@ function ProgressTimeline({
 const tlStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    marginBottom: Spacing.xl,
   },
   item: {
     flexDirection: "row",
@@ -195,7 +195,9 @@ export default function QuizScreen() {
 
   if (loading || !session) {
     return (
-      <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
+      <ScreenContainer
+        style={{ justifyContent: "center", alignItems: "center" }}
+      >
         <ActivityIndicator size="large" color={Colors.primary} />
       </ScreenContainer>
     );
@@ -203,7 +205,9 @@ export default function QuizScreen() {
 
   if (!question) {
     return (
-      <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
+      <ScreenContainer
+        style={{ justifyContent: "center", alignItems: "center" }}
+      >
         <Text>Error: Question not found</Text>
         <Button title="Go Home" onPress={() => router.replace("/")} />
       </ScreenContainer>
@@ -271,133 +275,154 @@ export default function QuizScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <ScreenContainer style={styles.container}>
-      {/* ── Progress timeline ── */}
-      <ProgressTimeline
-        total={questionIds.length}
-        currentIndex={currentIndex}
-        results={results}
-      />
+    <ScreenContainer style={styles.outerContainer}>
+      {/* ── Fixed progress timeline header ── */}
+      <View style={styles.timelineHeader}>
+        <ProgressTimeline
+          total={questionIds.length}
+          currentIndex={currentIndex}
+          results={results}
+        />
+      </View>
 
-      {/* ── Domain badge ── */}
-      <View
-        style={[
-          styles.domainBadge,
-          {
-            backgroundColor: domainTheme.tint,
-            borderColor: domainTheme.accent,
-          },
-        ]}
+      {/* ── Scrollable quiz body ── */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <DomainIcon size={18} color={domainTheme.accent} strokeWidth={2} />
-        <Text style={[styles.domainLabel, { color: domainTheme.accent }]}>
-          {question.domain}
-        </Text>
-      </View>
-
-      {/* ── Subdomain / tag pills ── */}
-      <View style={styles.tagsContainer}>
-        {question.subdomain && (
-          <Text style={styles.tag}>{question.subdomain}</Text>
-        )}
-        {question.tags?.map((tag, i) => (
-          <Text key={i} style={styles.tag}>
-            {tag}
+        {/* ── Domain badge ── */}
+        <View
+          style={[
+            styles.domainBadge,
+            {
+              backgroundColor: domainTheme.tint,
+              borderColor: domainTheme.accent,
+            },
+          ]}
+        >
+          <DomainIcon size={14} color={domainTheme.accent} strokeWidth={2} />
+          <Text style={[styles.domainLabel, { color: domainTheme.accent }]}>
+            {question.domain}
           </Text>
-        ))}
-      </View>
+        </View>
 
-      {/* ── Question prompt ── */}
-      <Text style={styles.title}>{question.prompt}</Text>
+        {/* ── Subdomain / tag pills (single-line, horizontally scrollable) ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tagsScroll}
+          style={styles.tagsContainer}
+        >
+          {question.subdomain && (
+            <Text style={styles.tag}>{question.subdomain}</Text>
+          )}
+          {question.tags?.map((tag, i) => (
+            <Text key={i} style={styles.tag}>
+              {tag}
+            </Text>
+          ))}
+        </ScrollView>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          PHASE: answering — show the shuffled choices
-          ══════════════════════════════════════════════════════════════════════ */}
-      {phase === "answering" && (
-        <View style={styles.choicesContainer}>
-          {shuffledChoices.map((choiceObj, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.choiceButton,
-                { borderColor: domainTheme.accent + "30" },
-              ]}
-              activeOpacity={0.7}
-              onPress={() => handleChoice(choiceObj.originalIndex)}
-            >
-              <View style={styles.choiceInner}>
-                <View
-                  style={[
-                    styles.choiceLetter,
-                    { backgroundColor: domainTheme.tint },
-                  ]}
-                >
-                  <Text
+        {/* ── Question prompt ── */}
+        <Text style={styles.title}>{question.prompt}</Text>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            PHASE: answering — show the shuffled choices
+            ══════════════════════════════════════════════════════════════════════ */}
+        {phase === "answering" && (
+          <View style={styles.choicesContainer}>
+            {shuffledChoices.map((choiceObj, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.choiceButton,
+                  { borderColor: domainTheme.accent + "30" },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => handleChoice(choiceObj.originalIndex)}
+              >
+                <View style={styles.choiceInner}>
+                  <View
                     style={[
-                      styles.choiceLetterText,
-                      { color: domainTheme.accent },
+                      styles.choiceLetter,
+                      { backgroundColor: domainTheme.tint },
                     ]}
                   >
-                    {String.fromCharCode(65 + index)}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.choiceLetterText,
+                        { color: domainTheme.accent },
+                      ]}
+                    >
+                      {String.fromCharCode(65 + index)}
+                    </Text>
+                  </View>
+                  <Text style={styles.choiceText}>{choiceObj.text}</Text>
                 </View>
-                <Text style={styles.choiceText}>{choiceObj.text}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          PHASE: feedback — show result inline
-          ══════════════════════════════════════════════════════════════════════ */}
-      {phase === "feedback" && (
-        <View style={styles.feedbackContainer}>
-          {/* Result icon + label */}
-          <View
-            style={[
-              styles.resultIconWrap,
-              {
-                backgroundColor: isCorrect
-                  ? Colors.correct + "18"
-                  : Colors.incorrect + "18",
-              },
-            ]}
-          >
-            {isCorrect ? (
-              <Check size={36} color={Colors.correct} strokeWidth={2.5} />
-            ) : (
-              <X size={36} color={Colors.incorrect} strokeWidth={2.5} />
-            )}
+              </TouchableOpacity>
+            ))}
           </View>
+        )}
 
-          <Text
-            style={[
-              styles.resultLabel,
-              { color: isCorrect ? Colors.correct : Colors.incorrect },
-            ]}
-          >
-            {isCorrect ? "Correct!" : "Incorrect"}
-          </Text>
-
-          {/* Correct answer hint (only when wrong) */}
-          {!isCorrect && (
-            <View style={styles.correctAnswerCard}>
-              <Text style={styles.correctAnswerHint}>Correct answer</Text>
-              <Text style={styles.correctAnswerText}>
-                {question.choices[question.correctIndex]}
-              </Text>
+        {/* ══════════════════════════════════════════════════════════════════════
+            PHASE: feedback — show result inline
+            ══════════════════════════════════════════════════════════════════════ */}
+        {phase === "feedback" && (
+          <View style={styles.feedbackContainer}>
+            {/* Result icon + label */}
+            <View
+              style={[
+                styles.resultIconWrap,
+                {
+                  backgroundColor: isCorrect
+                    ? Colors.correct + "18"
+                    : Colors.incorrect + "18",
+                },
+              ]}
+            >
+              {isCorrect ? (
+                <Check size={28} color={Colors.correct} strokeWidth={2.5} />
+              ) : (
+                <X size={28} color={Colors.incorrect} strokeWidth={2.5} />
+              )}
             </View>
-          )}
 
-          {/* Explanation */}
-          <Text style={styles.explanation}>{question.explanation}</Text>
+            <Text
+              style={[
+                styles.resultLabel,
+                { color: isCorrect ? Colors.correct : Colors.incorrect },
+              ]}
+            >
+              {isCorrect ? "Correct!" : "Incorrect"}
+            </Text>
 
-          {/* Next button */}
+            {/* Correct answer hint (only when wrong) */}
+            {!isCorrect && (
+              <View style={styles.correctAnswerCard}>
+                <Text style={styles.correctAnswerHint}>Correct answer</Text>
+                <Text style={styles.correctAnswerText}>
+                  {question.choices[question.correctIndex]}
+                </Text>
+              </View>
+            )}
+
+            {/* Explanation — always visible */}
+            <Text style={styles.explanation}>{question.explanation}</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* ── Fixed bottom Next button (feedback phase only) ── */}
+      {phase === "feedback" && (
+        <View style={styles.bottomBar}>
           <TouchableOpacity
             style={[
               styles.nextButton,
-              { backgroundColor: isCorrect ? Colors.correct : Colors.primary },
+              {
+                backgroundColor: isCorrect ? Colors.correct : Colors.primary,
+              },
             ]}
             activeOpacity={0.8}
             onPress={handleNext}
@@ -415,11 +440,25 @@ export default function QuizScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
+  /* ── Layout ── */
+  outerContainer: {
     flex: 1,
-    padding: Spacing.screen,
-    paddingTop: Spacing.xxxl,
-    justifyContent: "flex-start",
+  },
+  timelineHeader: {
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.screen,
+    backgroundColor: Colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.screen,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
     alignItems: "center",
   },
 
@@ -427,25 +466,27 @@ const styles = StyleSheet.create({
   domainBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   domainLabel: {
-    fontSize: FontSize.base,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
 
-  /* ── Subdomain / tag pills ── */
+  /* ── Subdomain / tag pills (single-line) ── */
   tagsContainer: {
+    flexGrow: 0,
+    marginBottom: Spacing.md,
+  },
+  tagsScroll: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+    alignItems: "center",
   },
   tag: {
     fontSize: FontSize.xs,
@@ -459,18 +500,18 @@ const styles = StyleSheet.create({
 
   /* ── Question prompt ── */
   title: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.lg,
     textAlign: "center",
     color: Colors.textPrimary,
-    lineHeight: 32,
+    lineHeight: 28,
   },
 
   /* ── Answer choices ── */
   choicesContainer: {
     width: "100%",
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   choiceButton: {
     backgroundColor: Colors.surface,
@@ -481,23 +522,23 @@ const styles = StyleSheet.create({
   choiceInner: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.base,
+    padding: Spacing.md,
     gap: Spacing.md,
   },
   choiceLetter: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: Radius.sm,
     justifyContent: "center",
     alignItems: "center",
   },
   choiceLetterText: {
-    fontSize: FontSize.base,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
   },
   choiceText: {
     flex: 1,
-    fontSize: FontSize.md,
+    fontSize: FontSize.base,
     color: Colors.textPrimary,
   },
 
@@ -505,20 +546,19 @@ const styles = StyleSheet.create({
   feedbackContainer: {
     width: "100%",
     alignItems: "center",
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   resultIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: Spacing.xs,
   },
   resultLabel: {
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   correctAnswerCard: {
     width: "100%",
@@ -537,23 +577,33 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   correctAnswerText: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.base,
     fontWeight: FontWeight.semibold,
     color: Colors.textPrimary,
   },
+
+  /* ── Explanation ── */
   explanation: {
     fontSize: FontSize.base,
     color: Colors.textSecondary,
-    textAlign: "center",
     lineHeight: LineHeight.relaxed,
-    paddingHorizontal: Spacing.xs,
+    textAlign: "center",
+  },
+
+  /* ── Fixed bottom bar ── */
+  bottomBar: {
+    paddingHorizontal: Spacing.screen,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
   },
   nextButton: {
     width: "100%",
     paddingVertical: Spacing.base,
     borderRadius: Radius.md,
     alignItems: "center",
-    marginTop: Spacing.sm,
   },
   nextButtonText: {
     fontSize: FontSize.md,

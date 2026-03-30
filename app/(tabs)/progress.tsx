@@ -4,12 +4,18 @@ import { ChevronDown, ChevronRight } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { seedQuestions } from "../../data/questions";
+import {
+  clearReverbStorage,
+  debugReverbStorage,
+  listAllStorage,
+} from "../../utils/storage-debug";
 import {
   Colors,
   CommonStyles,
@@ -365,6 +371,47 @@ export default function ProgressTabScreen() {
             : "No weak spots identified yet — keep quizzing!"}
         </Text>
       </View>
+
+      {/* ── Debug tools ── */}
+      <View style={styles.debugSection}>
+        <Text style={styles.debugTitle}>🛠 Debug Tools</Text>
+        <TouchableOpacity
+          style={styles.debugButton}
+          activeOpacity={0.7}
+          onPress={() => debugReverbStorage()}
+        >
+          <Text style={styles.debugButtonText}>Dump Session & Stats</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.debugButton}
+          activeOpacity={0.7}
+          onPress={() => listAllStorage()}
+        >
+          <Text style={styles.debugButtonText}>List All Storage</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.debugButtonDanger]}
+          activeOpacity={0.7}
+          onPress={() =>
+            Alert.alert(
+              "Clear Storage",
+              "This will wipe all session and stats data. Continue?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Clear",
+                  style: "destructive",
+                  onPress: () => clearReverbStorage(),
+                },
+              ],
+            )
+          }
+        >
+          <Text style={[styles.debugButtonText, styles.debugButtonDangerText]}>
+            Clear Storage
+          </Text>
+        </TouchableOpacity>
+      </View>
     </ScreenContainer>
   );
 }
@@ -427,5 +474,37 @@ const styles = StyleSheet.create({
   weakBody: {
     ...CommonStyles.bodyText,
     lineHeight: LineHeight.normal,
+  },
+  debugSection: {
+    marginTop: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  debugTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.xs,
+  },
+  debugButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  debugButtonText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+    color: Colors.textSecondary,
+  },
+  debugButtonDanger: {
+    borderColor: Colors.incorrect + "40",
+  },
+  debugButtonDangerText: {
+    color: Colors.incorrect,
   },
 });

@@ -20,7 +20,7 @@ export interface UserStats {
 }
 
 export const getTodayString = () => {
-  const date = new Date("2026-03-9");
+  const date = new Date("2026-03-24");
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
 };
 
