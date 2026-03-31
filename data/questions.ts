@@ -8,6 +8,8 @@ export interface Question {
   choices: string[];
   correctIndex: number;
   explanation: string;
+  learnMoreQuery: string;
+  learnMoreQueries?: string[];
   tags?: string[];
   freeResponseEligible?: boolean;
   freeResponsePrompt?: string;
@@ -34,6 +36,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "U.S. leaders viewed Vietnam through the Cold War policy of containment. They feared a communist victory would strengthen Soviet and Chinese influence in Southeast Asia and signal U.S. weakness abroad.",
+    learnMoreQuery: "why did the US get involved in the Vietnam War",
+    learnMoreQueries: [
+      "why did the US get involved in the Vietnam War",
+      "Vietnam War US involvement containment domino theory",
+      "Cold War containment Vietnam War explained",
+    ],
     tags: ["vietnam-war", "cold-war", "containment"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -65,6 +73,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The domino theory held that if one country fell to communism, nearby countries might follow. That idea strongly shaped U.S. justification for intervention in Vietnam.",
+    learnMoreQuery: "domino theory Cold War explained",
+    learnMoreQueries: [
+      "domino theory Cold War explained",
+      "how domino theory shaped US policy in Vietnam",
+      "domino theory Vietnam War",
+    ],
     tags: ["vietnam-war", "domino-theory", "cold-war"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -84,6 +98,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Black Death struck Europe mainly in the mid-1300s, especially from 1347 to 1351. Its demographic shock changed labor markets, weakened old social structures, and left a deep mark on European history.",
+    learnMoreQuery: "Black Death 14th century overview",
+    learnMoreQueries: [
+      "Black Death 14th century overview",
+      "Black Death causes effects Europe 1347 1351",
+      "why the Black Death mattered in European history",
+    ],
     tags: ["black-death", "middle-ages", "europe"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -108,6 +128,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "The 16th Amendment gave Congress clear authority to levy a federal income tax. That change became a major foundation of the modern federal government's revenue system.",
+    learnMoreQuery: "16th Amendment explained federal income tax",
+    learnMoreQueries: [
+      "16th Amendment explained federal income tax",
+      "what did the 16th Amendment do",
+      "US Constitution 16th Amendment summary",
+    ],
     tags: ["constitution", "16th-amendment", "taxes"],
     freeResponseEligible: true,
     freeResponsePrompt: "What did the 16th Amendment authorize?",
@@ -137,6 +163,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "Article I gives Congress powers such as declaring war, taxing, borrowing, and regulating commerce. The president can command the military, but Congress is the branch that formally declares war.",
+    learnMoreQuery: "Article I powers of Congress explained",
+    learnMoreQueries: [
+      "Article I powers of Congress explained",
+      "Congress power to declare war Constitution",
+      "enumerated powers of Congress Article I",
+    ],
     tags: ["constitution", "congress", "article-i"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -166,6 +198,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "The national government under the Articles was intentionally weak and had no strong power to tax directly. That weakness made it hard to pay debts, fund national priorities, or respond effectively to crises.",
+    learnMoreQuery: "Articles of Confederation weaknesses explained",
+    learnMoreQueries: [
+      "Articles of Confederation weaknesses explained",
+      "why couldn't the Articles of Confederation government tax directly",
+      "Articles of Confederation vs Constitution weaknesses",
+    ],
     tags: ["articles-of-confederation", "founding", "constitution"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -194,6 +232,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Japan's attack on Pearl Harbor in December 1941 pushed the United States into the war. It turned a conflict many Americans had watched from a distance into a direct national emergency.",
+    learnMoreQuery: "what event brought the US into World War 2",
+    learnMoreQueries: [
+      "what event brought the US into World War 2",
+      "Pearl Harbor attack explained US entry into WWII",
+      "December 7 1941 Pearl Harbor significance",
+    ],
     tags: ["ww2", "pearl-harbor", "us-history"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -218,6 +262,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Marshall Plan sent U.S. economic aid to Western Europe after World War II. It was not just humanitarian; it was also strategic, helping stabilize democratic governments and reduce the appeal of communism.",
+    learnMoreQuery: "Marshall Plan explained containment Cold War",
+    learnMoreQueries: [
+      "Marshall Plan explained containment Cold War",
+      "why the Marshall Plan mattered",
+      "Marshall Plan Western Europe Soviet influence",
+    ],
     tags: ["marshall-plan", "cold-war", "europe"],
     freeResponseEligible: true,
     freeResponsePrompt: "Why was the Marshall Plan historically significant?",
@@ -246,6 +296,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "Brown v. Board held that racial segregation in public schools violated the Equal Protection Clause. It became one of the most important legal foundations of the modern civil rights movement.",
+    learnMoreQuery: "Brown v Board of Education explained",
+    learnMoreQueries: [
+      "Brown v Board of Education explained",
+      "why Brown v Board was important",
+      "school segregation unconstitutional Brown v Board",
+    ],
     tags: ["civil-rights", "supreme-court", "brown-v-board"],
     freeResponseEligible: true,
     freeResponsePrompt: "What did Brown v. Board of Education decide?",
@@ -273,6 +329,13 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The assassination of Archduke Franz Ferdinand in Sarajevo set off a chain reaction through Europe's alliance system. The deeper causes were broader, but that event was the immediate spark.",
+    learnMoreQuery:
+      "what triggered World War 1 assassination of Franz Ferdinand",
+    learnMoreQueries: [
+      "what triggered World War 1 assassination of Franz Ferdinand",
+      "causes of World War 1 explained",
+      "Franz Ferdinand assassination spark of WWI",
+    ],
     tags: ["ww1", "franz-ferdinand", "alliances"],
     freeResponseEligible: true,
     freeResponsePrompt: "What event immediately triggered World War I in 1914?",
@@ -299,6 +362,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Enlightenment was an intellectual movement that stressed reason, science, individual rights, and criticism of traditional authority. Its ideas influenced revolutions, constitutions, and modern liberal political thought.",
+    learnMoreQuery: "Enlightenment explained reason natural rights",
+    learnMoreQueries: [
+      "Enlightenment explained reason natural rights",
+      "major ideas of the Enlightenment",
+      "how the Enlightenment influenced modern politics",
+    ],
     tags: ["enlightenment", "political-thought", "rights"],
     freeResponseEligible: true,
     freeResponsePrompt: "What was the Enlightenment?",
@@ -327,6 +396,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Emancipation Proclamation declared enslaved people in areas still in rebellion to be free. It did not by itself end slavery everywhere, but it transformed the war's meaning and linked Union victory to emancipation.",
+    learnMoreQuery: "Emancipation Proclamation explained",
+    learnMoreQueries: [
+      "Emancipation Proclamation explained",
+      "what did the Emancipation Proclamation actually do",
+      "Lincoln Emancipation Proclamation Confederate territory",
+    ],
     tags: ["civil-war", "lincoln", "emancipation"],
     freeResponseEligible: true,
     freeResponsePrompt: "What did the Emancipation Proclamation do?",
@@ -354,6 +429,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "NATO was formed in 1949 as a mutual defense alliance. Its core idea was that an attack on one member would be treated as an attack on all, helping deter Soviet expansion in Europe.",
+    learnMoreQuery: "why was NATO created",
+    learnMoreQueries: [
+      "why was NATO created",
+      "NATO original purpose Cold War",
+      "collective defense against Soviet aggression NATO",
+    ],
     tags: ["nato", "cold-war", "alliances"],
     freeResponseEligible: true,
     freeResponsePrompt: "Why was NATO originally created?",
@@ -381,6 +462,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Franklin Roosevelt's New Deal responded to the Great Depression through relief, recovery, and reform. It reshaped the relationship between the federal government, the economy, and social welfare.",
+    learnMoreQuery: "New Deal explained Great Depression",
+    learnMoreQueries: [
+      "New Deal explained Great Depression",
+      "what crisis led to the New Deal",
+      "FDR New Deal relief recovery reform",
+    ],
     tags: ["new-deal", "great-depression", "fdr"],
     freeResponseEligible: true,
     freeResponsePrompt: "The New Deal was primarily a response to what crisis?",
@@ -404,6 +491,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "The Magna Carta did not create modern democracy overnight, but it became a lasting symbol that even the king was not above the law. That idea later influenced constitutional and legal traditions in England and beyond.",
+    learnMoreQuery: "Magna Carta rule of law explained",
+    learnMoreQueries: [
+      "Magna Carta rule of law explained",
+      "why is the Magna Carta important",
+      "Magna Carta influence on constitutional government",
+    ],
     tags: ["magna-carta", "rule-of-law", "england"],
     freeResponseEligible: true,
     freeResponsePrompt: "Why is the Magna Carta historically important?",
@@ -428,6 +521,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "The Suez Canal cuts across Egypt and links the Mediterranean to the Red Sea. It is one of the world's most important trade chokepoints because it shortens the sea route between Europe and Asia.",
+    learnMoreQuery: "Suez Canal explained map trade significance",
+    learnMoreQueries: [
+      "Suez Canal explained map trade significance",
+      "Mediterranean Sea to Red Sea canal",
+      "why the Suez Canal matters",
+    ],
     tags: ["suez", "trade", "egypt"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -447,6 +546,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Panama Canal lets ships avoid the long trip around South America. Its importance is geographic, economic, and military because it speeds global shipping and naval movement.",
+    learnMoreQuery: "Panama Canal explained map trade significance",
+    learnMoreQueries: [
+      "Panama Canal explained map trade significance",
+      "canal linking Atlantic and Pacific Oceans",
+      "why the Panama Canal matters",
+    ],
     tags: ["panama-canal", "trade", "shipping"],
     freeResponseEligible: true,
     freeResponsePrompt: "Which canal links the Atlantic and Pacific Oceans?",
@@ -470,6 +575,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Bering Strait is the narrow body of water between Alaska and Russia. It is a useful reminder that the United States and Russia are geographically much closer than many people imagine.",
+    learnMoreQuery: "Bering Strait map Alaska Russia",
+    learnMoreQueries: [
+      "Bering Strait map Alaska Russia",
+      "which strait separates Alaska and Russia",
+      "Bering Strait geography significance",
+    ],
     tags: ["bering-strait", "russia", "alaska"],
     freeResponseEligible: true,
     freeResponsePrompt: "Which strait separates Alaska from Russia?",
@@ -488,6 +599,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "Baghdad sits on the Tigris River, one of the two great rivers associated with ancient Mesopotamia. Knowing that helps connect today's Middle East to one of the oldest centers of urban civilization.",
+    learnMoreQuery: "Tigris River Baghdad map",
+    learnMoreQueries: [
+      "Tigris River Baghdad map",
+      "Baghdad on the Tigris River",
+      "Mesopotamia Tigris Euphrates modern Iraq",
+    ],
     tags: ["baghdad", "tigris", "mesopotamia"],
     freeResponseEligible: true,
     freeResponsePrompt: "Which river runs through Baghdad?",
@@ -507,6 +624,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Canada shares the longest border with the United States. It is a simple geographic fact, but it also matters because the U.S.-Canada relationship is one of the most important in trade, security, and energy.",
+    learnMoreQuery: "longest international border with the United States",
+    learnMoreQueries: [
+      "longest international border with the United States",
+      "US Canada border explained",
+      "how long is the US Canada border",
+    ],
     tags: ["united-states", "canada", "borders"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -532,6 +655,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "The Urals are one of the traditional markers dividing Europe from Asia. That boundary is partly cultural and historical, not just physical, which is why Russia is often described as both European and Asian.",
+    learnMoreQuery: "Ural Mountains Europe Asia boundary explained",
+    learnMoreQueries: [
+      "Ural Mountains Europe Asia boundary explained",
+      "why Russia is in Europe and Asia",
+      "traditional boundary between Europe and Asia",
+    ],
     tags: ["urals", "continents", "russia"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -552,6 +681,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 2,
     explanation:
       "The Himalayas are not just the highest mountain range in the world; they also shape climate, water systems, and geopolitics across South Asia.",
+    learnMoreQuery: "Himalayas Indian subcontinent Tibetan Plateau explained",
+    learnMoreQueries: [
+      "Himalayas Indian subcontinent Tibetan Plateau explained",
+      "Himalayas geography significance South Asia",
+      "how the Himalayas shape South Asia",
+    ],
     tags: ["himalayas", "india", "asia"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -571,6 +706,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Black Sea is a strategically important crossroads between Eastern Europe, Russia, the Caucasus, and the Mediterranean world. That is one reason it shows up so often in history and current events.",
+    learnMoreQuery: "Black Sea map Ukraine Turkey significance",
+    learnMoreQueries: [
+      "Black Sea map Ukraine Turkey significance",
+      "where is the Black Sea",
+      "why the Black Sea matters geopolitically",
+    ],
     tags: ["black-sea", "ukraine", "turkey"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -595,6 +736,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "The Baltic states are Estonia, Latvia, and Lithuania. They are small, strategically located countries on the eastern edge of the Baltic Sea with important histories involving both Europe and Russia.",
+    learnMoreQuery: "Baltic states explained Estonia Latvia Lithuania",
+    learnMoreQueries: [
+      "Baltic states explained Estonia Latvia Lithuania",
+      "where are the Baltic states",
+      "history of Estonia Latvia Lithuania overview",
+    ],
     tags: ["baltics", "europe", "regions"],
     freeResponseEligible: true,
     freeResponsePrompt: "Which countries are known as the Baltic states?",
@@ -622,6 +769,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Mesopotamia, often called a cradle of civilization, developed between the Tigris and Euphrates. That river system helped support some of the world's earliest cities, states, and written records.",
+    learnMoreQuery: "Mesopotamia Tigris Euphrates explained",
+    learnMoreQueries: [
+      "Mesopotamia Tigris Euphrates explained",
+      "why Mesopotamia is called the cradle of civilization",
+      "Mesopotamia map ancient civilization rivers",
+    ],
     tags: ["mesopotamia", "ancient-history", "rivers"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -642,6 +795,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "The Red Sea lies between northeastern Africa and the Arabian Peninsula. It matters because it connects to the Suez Canal and sits on one of the world's most important trade routes.",
+    learnMoreQuery: "Red Sea map Arabian Peninsula northeastern Africa",
+    learnMoreQueries: [
+      "Red Sea map Arabian Peninsula northeastern Africa",
+      "why the Red Sea matters trade",
+      "Red Sea and Suez Canal connection",
+    ],
     tags: ["red-sea", "trade", "middle-east"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -661,6 +820,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Turkey controls the Bosporus, the narrow strait linking the Black Sea to the Mediterranean through the Sea of Marmara and the Dardanelles. That geography gives Turkey major strategic importance.",
+    learnMoreQuery: "Bosporus Strait Turkey explained",
+    learnMoreQueries: [
+      "Bosporus Strait Turkey explained",
+      "why the Bosporus is strategically important",
+      "Turkey controls the Bosporus map",
+    ],
     tags: ["bosporus", "turkey", "straits"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -685,6 +850,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "South Africa sits where the Atlantic and Indian Oceans meet. That position has long mattered for trade routes linking Europe, Asia, and Africa.",
+    learnMoreQuery: "which oceans border South Africa",
+    learnMoreQueries: [
+      "which oceans border South Africa",
+      "South Africa Atlantic and Indian Oceans map",
+      "Cape of Good Hope trade route significance",
+    ],
     tags: ["south-africa", "oceans", "trade-routes"],
     freeResponseEligible: true,
     freeResponsePrompt: "Which two oceans border South Africa?",
@@ -713,6 +884,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "To mitigate something is to lessen its severity, harm, or impact. It is a common word in policy, business, and risk discussions because people are often trying to reduce damage rather than eliminate it completely.",
+    learnMoreQuery: "mitigate definition examples",
+    learnMoreQueries: [
+      "mitigate definition examples",
+      "what does mitigate mean",
+      "mitigate in policy and risk contexts",
+    ],
     tags: ["vocabulary", "risk", "mitigate"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "mitigate" mean?',
@@ -740,6 +917,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "To exacerbate something is to make an existing problem worse. It often appears in news, health, and policy language where one condition intensifies another.",
+    learnMoreQuery: "exacerbate definition examples",
+    learnMoreQueries: [
+      "exacerbate definition examples",
+      "what does exacerbate mean",
+      "exacerbate in a sentence",
+    ],
     tags: ["vocabulary", "news", "exacerbate"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "exacerbate" mean?',
@@ -763,6 +946,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "An implicit idea is present by implication rather than direct statement. This matters in reading, argument, and conversation because people often communicate assumptions without spelling them out.",
+    learnMoreQuery: "implicit definition examples",
+    learnMoreQueries: [
+      "implicit definition examples",
+      "implicit vs explicit explained",
+      "what does implicit mean in reading",
+    ],
     tags: ["vocabulary", "implicit", "reading"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "implicit" mean?',
@@ -790,6 +979,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "A precedent is an earlier case or example that influences how later cases are decided. It is a foundational concept in legal reasoning because systems often depend on consistency over time.",
+    learnMoreQuery: "precedent definition law explained",
+    learnMoreQueries: [
+      "precedent definition law explained",
+      "legal precedent meaning examples",
+      "why precedent matters in court cases",
+    ],
     tags: ["vocabulary", "law", "precedent"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -818,6 +1013,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Jurisdiction refers to legal authority, especially over a place, subject matter, or person. It matters because even valid laws or rulings can fail if the body making them lacks proper authority.",
+    learnMoreQuery: "jurisdiction definition law explained",
+    learnMoreQueries: [
+      "jurisdiction definition law explained",
+      "what does jurisdiction mean",
+      "types of jurisdiction explained",
+    ],
     tags: ["vocabulary", "law", "jurisdiction"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "jurisdiction" mean?',
@@ -845,6 +1046,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "A bipartisan action or agreement involves support from both major political parties. In practice, the word often signals unusual cooperation in a polarized political environment.",
+    learnMoreQuery: "bipartisan definition politics",
+    learnMoreQueries: [
+      "bipartisan definition politics",
+      "what does bipartisan mean",
+      "examples of bipartisan legislation",
+    ],
     tags: ["vocabulary", "politics", "bipartisan"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "bipartisan" mean?',
@@ -872,6 +1079,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Provisional means temporary or conditional rather than final. It is common in diplomacy, law, and planning, where decisions are often made before every detail is settled.",
+    learnMoreQuery: "provisional definition examples",
+    learnMoreQueries: [
+      "provisional definition examples",
+      "what does provisional mean",
+      "provisional agreement meaning",
+    ],
     tags: ["vocabulary", "provisional", "formal-language"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "provisional" mean?',
@@ -899,6 +1112,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "If something is ubiquitous, it is found everywhere or seems to be everywhere. The word is useful because it captures scale and saturation better than simply saying something is common.",
+    learnMoreQuery: "ubiquitous definition examples",
+    learnMoreQueries: [
+      "ubiquitous definition examples",
+      "what does ubiquitous mean",
+      "ubiquitous in a sentence",
+    ],
     tags: ["vocabulary", "ubiquitous", "general-usage"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "ubiquitous" mean?',
@@ -926,6 +1145,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "A plausible explanation is one that seems believable on first inspection. The word matters because something can be plausible without being true, which is a useful distinction in reasoning and debate.",
+    learnMoreQuery: "plausible definition examples",
+    learnMoreQueries: [
+      "plausible definition examples",
+      "what does plausible mean",
+      "plausible vs possible explained",
+    ],
     tags: ["vocabulary", "plausible", "reasoning"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "plausible" mean?',
@@ -954,6 +1179,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Fiscal refers to public money, budgets, taxation, and government finance. It is a core word in economics and politics because many major policy arguments are really fiscal arguments.",
+    learnMoreQuery: "fiscal definition government finance",
+    learnMoreQueries: [
+      "fiscal definition government finance",
+      "what does fiscal mean in fiscal policy",
+      "fiscal policy explained",
+    ],
     tags: ["vocabulary", "fiscal", "economics"],
     freeResponseEligible: true,
     freeResponsePrompt: 'What does "fiscal" relate to?',
@@ -981,6 +1212,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 1,
     explanation:
       "Sanctions are typically economic or legal restrictions imposed to pressure a government, company, or individual. They are a common tool of statecraft because they aim to punish or deter without direct war.",
+    learnMoreQuery: "sanctions definition international relations",
+    learnMoreQueries: [
+      "sanctions definition international relations",
+      "what are sanctions in world politics",
+      "economic sanctions explained",
+    ],
     tags: ["vocabulary", "sanctions", "international-relations"],
     freeResponseEligible: true,
     freeResponsePrompt:
@@ -1011,6 +1248,12 @@ export const seedQuestions: Question[] = [
     correctIndex: 0,
     explanation:
       "To ratify something is to give it formal approval, often after it has already been negotiated or proposed. It is a key civics word because constitutions, treaties, and amendments often require ratification before they take effect.",
+    learnMoreQuery: "ratify definition civics",
+    learnMoreQueries: [
+      "ratify definition civics",
+      "what does ratify mean in government",
+      "ratification of treaties and amendments explained",
+    ],
     tags: ["vocabulary", "ratify", "civics"],
     freeResponseEligible: true,
     freeResponsePrompt:

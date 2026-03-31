@@ -8,8 +8,10 @@ export interface DailySession {
   date: string; // YYYY-MM-DD
   status: "available" | "in-progress" | "completed";
   questionIds: string[];
+  questionTypes?: Record<string, "new" | "missed" | "resurfaced">;
   currentIndex: number;
   score: number;
+  results?: ("correct" | "incorrect" | null)[];
 }
 
 export interface UserStats {
@@ -20,7 +22,7 @@ export interface UserStats {
 }
 
 export const getTodayString = () => {
-  const date = new Date("2026-03-24");
+  const date = new Date("2026-03-26");
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
 };
 
@@ -85,26 +87,29 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   const missedSet = new Set(stats.missedQuestions || []);
   const correctSet = new Set(stats.correctQuestions || []);
 
-  const selected: string[] = [];
+  const selectedIds: string[] = [];
+  const questionTypes: Record<string, "new" | "missed" | "resurfaced"> = {};
 
-  const pickRandom = (arr: Question[], n: number): Question[] => {
+  const pickRandom = <T>(arr: T[], n: number): T[] => {
     const shuffled = [...arr].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, n);
   };
 
-  // 1. Confidence check: 1 previously answered correctly
-  let confidenceCandidates = seedQuestions.filter(
-    (q) => correctSet.has(q.id) && !recentlySeenSet.has(q.id),
+  // 1. 3 New questions
+  let newCandidates = seedQuestions.filter(
+    (q) =>
+      !recentlySeenSet.has(q.id) &&
+      !missedSet.has(q.id) &&
+      !correctSet.has(q.id),
   );
-  if (confidenceCandidates.length === 0) {
-    confidenceCandidates = seedQuestions.filter((q) => correctSet.has(q.id)); // fallback: include recently seen correct
-  }
-  const confidenceCheck = pickRandom(confidenceCandidates, 1)[0];
-  if (confidenceCheck) {
-    selected.push(confidenceCheck.id);
+
+  const newPicks = pickRandom(newCandidates, 3);
+  for (const p of newPicks) {
+    selectedIds.push(p.id);
+    questionTypes[p.id] = "new";
   }
 
-  // 2. Resurfaced weak-spot question (1 question)
+  // 2. 1 Previously missed question
   const weakSubdomains = new Map<string, number>();
   for (const id of missedSet) {
     const q = seedQuestions.find((s) => s.id === id);
@@ -120,7 +125,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
     return seedQuestions
       .filter(
         (q) =>
-          !selected.includes(q.id) &&
+          !selectedIds.includes(q.id) &&
           (avoidRecentlySeen ? !recentlySeenSet.has(q.id) : true),
       )
       .map((q) => {
@@ -139,47 +144,85 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
     weakCandidates = getWeakCandidates(false);
   }
 
-  // Sort pseudo-randomly for ties, then by score descending
   weakCandidates.sort(() => 0.5 - Math.random());
   weakCandidates.sort((a, b) => b.score - a.score);
 
   const weakSpot = weakCandidates.length > 0 ? weakCandidates[0].q : null;
   if (weakSpot) {
-    selected.push(weakSpot.id);
+    selectedIds.push(weakSpot.id);
+    questionTypes[weakSpot.id] = "missed";
   }
 
-  // 3. New questions (Targeting 3, but simply filling the rest)
-  const targetTotal = 5;
-  const needCount = targetTotal - selected.length;
+  // 3. 1 Wildcard (Resurfaced, New, or Missed)
+  let wildcardCandidates: {
+    q: Question;
+    type: "new" | "missed" | "resurfaced";
+  }[] = [];
 
-  let newCandidates = seedQuestions.filter(
+  const resurfacedPool = seedQuestions.filter(
     (q) =>
-      !selected.includes(q.id) &&
+      correctSet.has(q.id) &&
+      !recentlySeenSet.has(q.id) &&
+      !selectedIds.includes(q.id),
+  );
+  if (resurfacedPool.length > 0)
+    wildcardCandidates.push({
+      q: pickRandom(resurfacedPool, 1)[0],
+      type: "resurfaced",
+    });
+
+  const extraNewPool = seedQuestions.filter(
+    (q) =>
       !recentlySeenSet.has(q.id) &&
       !missedSet.has(q.id) &&
-      !correctSet.has(q.id),
+      !correctSet.has(q.id) &&
+      !selectedIds.includes(q.id),
   );
+  if (extraNewPool.length > 0)
+    wildcardCandidates.push({ q: pickRandom(extraNewPool, 1)[0], type: "new" });
 
-  const newPicks = pickRandom(newCandidates, needCount);
-  selected.push(...newPicks.map((q) => q.id));
+  const extraMissedPool = seedQuestions.filter(
+    (q) => missedSet.has(q.id) && !selectedIds.includes(q.id),
+  );
+  if (extraMissedPool.length > 0)
+    wildcardCandidates.push({
+      q: pickRandom(extraMissedPool, 1)[0],
+      type: "missed",
+    });
 
-  // 4. Fallback: if we still don't have 5, fill with any unused questions
-  if (selected.length < targetTotal) {
-    const remainingNeed = targetTotal - selected.length;
-    const fallbackCandidates = seedQuestions.filter(
-      (q) => !selected.includes(q.id),
-    );
-    const fallbackPicks = pickRandom(fallbackCandidates, remainingNeed);
-    selected.push(...fallbackPicks.map((q) => q.id));
+  if (wildcardCandidates.length > 0) {
+    const pickedWildcard = pickRandom(wildcardCandidates, 1)[0];
+    selectedIds.push(pickedWildcard.q.id);
+    questionTypes[pickedWildcard.q.id] = pickedWildcard.type;
   }
 
-  // Shuffle final selection so the user doesn't know the order of new vs weak vs confidence
-  const finalSelected = [...selected].sort(() => 0.5 - Math.random());
+  // 4. Fallback: fill to 5 questions
+  const targetTotal = 5;
+  if (selectedIds.length < targetTotal) {
+    const remainingNeed = targetTotal - selectedIds.length;
+    const fallbackCandidates = seedQuestions.filter(
+      (q) => !selectedIds.includes(q.id),
+    );
+    const fallbackPicks = pickRandom(fallbackCandidates, remainingNeed);
+    for (const p of fallbackPicks) {
+      selectedIds.push(p.id);
+      if (missedSet.has(p.id)) {
+        questionTypes[p.id] = "missed";
+      } else if (correctSet.has(p.id)) {
+        questionTypes[p.id] = "resurfaced";
+      } else {
+        questionTypes[p.id] = "new";
+      }
+    }
+  }
+
+  const finalSelected = [...selectedIds].sort(() => 0.5 - Math.random());
 
   const newSession: DailySession = {
     date: today,
     status: "available",
     questionIds: finalSelected,
+    questionTypes,
     currentIndex: 0,
     score: 0,
   };
