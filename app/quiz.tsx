@@ -2,7 +2,14 @@ import { ScreenContainer } from "@/components/screen-container";
 import { getThemeForDomain } from "@/constants/domain-themes";
 import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
-import { Check, X, Sparkles, Target, RotateCcw, Search } from "lucide-react-native";
+import {
+  Check,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Target,
+  X,
+} from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Colors,
   FontSize,
@@ -151,6 +159,7 @@ const tlStyles = StyleSheet.create({
 
 export default function QuizScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [session, setSession] = useState<DailySession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,16 +181,19 @@ export default function QuizScreen() {
         router.replace("/");
         return;
       }
-      const loadedResults = s.results && s.results.length > 0 ? s.results : new Array(s.questionIds.length).fill(null);
-      
+      const loadedResults =
+        s.results && s.results.length > 0
+          ? s.results
+          : new Array(s.questionIds.length).fill(null);
+
       setSession(s);
       setResults(loadedResults);
-      
+
       if (loadedResults[s.currentIndex]) {
         setPhase("feedback");
         setIsNextReady(true);
       }
-      
+
       setLoading(false);
     };
     fetchSession();
@@ -230,11 +242,13 @@ export default function QuizScreen() {
 
   // ─── Derived state ────────────────────────────────────────────────────────
 
+  const isRetryMode = session.retryMode === true;
   const DomainIcon = domainTheme.icon;
   const answeredResult = results[currentIndex];
-  const isCorrect = answeredResult 
-    ? answeredResult === "correct" 
-    : (selectedOriginalIndex !== null && selectedOriginalIndex === question.correctIndex);
+  const isCorrect = answeredResult
+    ? answeredResult === "correct"
+    : selectedOriginalIndex !== null &&
+      selectedOriginalIndex === question.correctIndex;
   const isLastQuestion = currentIndex + 1 >= questionIds.length;
 
   // ─── Handlers  ────────────────────────────────────────────────────────────
@@ -260,13 +274,20 @@ export default function QuizScreen() {
     setResults(nextResults);
 
     // Update session score & persist stats
-    const updatedSession = { ...session, status: "in-progress" as const, results: nextResults };
-    if (correct) updatedSession.score += 1;
-    
+    const updatedSession = {
+      ...session,
+      status: "in-progress" as const,
+      results: nextResults,
+    };
+    if (correct && !isRetryMode) updatedSession.score += 1;
+
     setSession(updatedSession);
     await saveSession(updatedSession);
 
-    await updateQuestionStats(question.id, correct);
+    // In retry mode, don't persist stats — answers are practice-only
+    if (!isRetryMode) {
+      await updateQuestionStats(question.id, correct);
+    }
 
     setPhase("feedback");
 
@@ -286,8 +307,26 @@ export default function QuizScreen() {
     const finalSession = { ...session, results };
 
     if (isLastQuestion) {
-      await completeSession(finalSession);
-      router.replace("/session-summary");
+      if (isRetryMode) {
+        // Restore the original session and attach retry results
+        const restoredSession: DailySession = {
+          ...finalSession,
+          retryMode: false,
+          retryResults: results,
+          status: "completed",
+          // Restore original data
+          questionIds:
+            finalSession.originalQuestionIds ?? finalSession.questionIds,
+          results: finalSession.originalResults ?? finalSession.results,
+          score: finalSession.originalScore ?? finalSession.score,
+          currentIndex: 0,
+        };
+        await saveSession(restoredSession);
+        router.replace("/session-summary");
+      } else {
+        await completeSession(finalSession);
+        router.replace("/session-summary");
+      }
     } else {
       finalSession.currentIndex += 1;
       await saveSession(finalSession);
@@ -301,8 +340,23 @@ export default function QuizScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <ScreenContainer style={styles.outerContainer}>
-      <Stack.Screen options={{ headerBackTitle: "Home", title: "Daily Session" }} />
+    <ScreenContainer edges={["left", "right"]} style={styles.outerContainer}>
+      <Stack.Screen
+        options={{
+          headerBackTitle: "Home",
+          title: isRetryMode ? "Practice Round" : "Daily Session",
+        }}
+      />
+
+      {/* ── Practice mode banner ── */}
+      {isRetryMode && (
+        <View style={styles.practiceBanner}>
+          <Text style={styles.practiceBannerText}>
+            Practice Mode — answers won't be saved
+          </Text>
+        </View>
+      )}
+
       {/* ── Fixed progress timeline header ── */}
       <View style={styles.timelineHeader}>
         <ProgressTimeline
@@ -342,29 +396,52 @@ export default function QuizScreen() {
             <View
               style={[
                 styles.typeBadge,
-                session.questionTypes[question.id] === "new" && { backgroundColor: Colors.primary + "18", borderColor: Colors.primary + "30" },
-                session.questionTypes[question.id] === "missed" && { backgroundColor: Colors.incorrect + "18", borderColor: Colors.incorrect + "30" },
-                session.questionTypes[question.id] === "resurfaced" && { backgroundColor: Colors.correct + "18", borderColor: Colors.correct + "30" },
+                session.questionTypes[question.id] === "new" && {
+                  backgroundColor: Colors.primary + "18",
+                  borderColor: Colors.primary + "30",
+                },
+                session.questionTypes[question.id] === "missed" && {
+                  backgroundColor: Colors.incorrect + "18",
+                  borderColor: Colors.incorrect + "30",
+                },
+                session.questionTypes[question.id] === "resurfaced" && {
+                  backgroundColor: Colors.correct + "18",
+                  borderColor: Colors.correct + "30",
+                },
               ]}
             >
-              {session.questionTypes[question.id] === "new" && <Sparkles size={14} color={Colors.primary} strokeWidth={2} />}
-              {session.questionTypes[question.id] === "missed" && <Target size={14} color={Colors.incorrect} strokeWidth={2} />}
-              {session.questionTypes[question.id] === "resurfaced" && <RotateCcw size={14} color={Colors.correct} strokeWidth={2} />}
+              {session.questionTypes[question.id] === "new" && (
+                <Sparkles size={14} color={Colors.primary} strokeWidth={2} />
+              )}
+              {session.questionTypes[question.id] === "missed" && (
+                <Target size={14} color={Colors.incorrect} strokeWidth={2} />
+              )}
+              {session.questionTypes[question.id] === "resurfaced" && (
+                <RotateCcw size={14} color={Colors.correct} strokeWidth={2} />
+              )}
               <Text
                 style={[
                   styles.typeBadgeText,
-                  session.questionTypes[question.id] === "new" && { color: Colors.primary },
-                  session.questionTypes[question.id] === "missed" && { color: Colors.incorrect },
-                  session.questionTypes[question.id] === "resurfaced" && { color: Colors.correct },
+                  session.questionTypes[question.id] === "new" && {
+                    color: Colors.primary,
+                  },
+                  session.questionTypes[question.id] === "missed" && {
+                    color: Colors.incorrect,
+                  },
+                  session.questionTypes[question.id] === "resurfaced" && {
+                    color: Colors.correct,
+                  },
                 ]}
               >
-                {session.questionTypes[question.id] === "new" ? "New Question" : session.questionTypes[question.id] === "missed" ? "Previously Missed" : "Knowledge Check"}
+                {session.questionTypes[question.id] === "new"
+                  ? "New Question"
+                  : session.questionTypes[question.id] === "missed"
+                    ? "Previously Missed"
+                    : "Knowledge Check"}
               </Text>
             </View>
           )}
         </View>
-
-
 
         {/* ── Question prompt ── */}
         <Text style={styles.title}>{question.prompt}</Text>
@@ -439,20 +516,34 @@ export default function QuizScreen() {
               {isCorrect ? "Correct!" : "Incorrect"}
             </Text>
 
-            {/* Correct answer hint (only when wrong) */}
-            {!isCorrect && (
-              <View style={styles.correctAnswerCard}>
-                <Text style={styles.correctAnswerHint}>Correct answer</Text>
-                <Text style={styles.correctAnswerText}>
-                  {question.choices[question.correctIndex]}
-                </Text>
-              </View>
-            )}
+            {/* Correct answer — always shown */}
+            <View
+              style={[
+                styles.correctAnswerCard,
+                isCorrect && {
+                  backgroundColor: Colors.correct + "12",
+                  borderLeftColor: Colors.correct,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.correctAnswerHint,
+                  isCorrect && { color: Colors.correct },
+                ]}
+              >
+                {isCorrect ? "Your answer" : "Correct answer"}
+              </Text>
+              <Text style={styles.correctAnswerText}>
+                {question.choices[question.correctIndex]}
+              </Text>
+            </View>
 
             {/* Explanation — always visible */}
             <View style={styles.explanationBox}>
               <Text style={styles.explanationText}>{question.explanation}</Text>
-              {question.learnMoreQueries && question.learnMoreQueries.length > 0 ? (
+              {question.learnMoreQueries &&
+              question.learnMoreQueries.length > 0 ? (
                 <View style={styles.queriesContainer}>
                   {question.learnMoreQueries.map((query, index) => (
                     <TouchableOpacity
@@ -460,10 +551,16 @@ export default function QuizScreen() {
                       style={styles.searchLink}
                       activeOpacity={0.7}
                       onPress={() => {
-                        Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
+                        Linking.openURL(
+                          `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                        );
                       }}
                     >
-                      <Search size={14} color={Colors.primary} strokeWidth={2.5} />
+                      <Search
+                        size={14}
+                        color={Colors.primary}
+                        strokeWidth={2.5}
+                      />
                       <Text style={styles.searchLinkText}>{query}</Text>
                     </TouchableOpacity>
                   ))}
@@ -473,13 +570,20 @@ export default function QuizScreen() {
                   style={styles.searchLink}
                   activeOpacity={0.7}
                   onPress={() => {
-                    const searchTerm = question.tags?.[0]?.replace(/-/g, " ") || question.subdomain || question.domain;
-                    Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`);
+                    const searchTerm =
+                      question.tags?.[0]?.replace(/-/g, " ") ||
+                      question.subdomain ||
+                      question.domain;
+                    Linking.openURL(
+                      `https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`,
+                    );
                   }}
                 >
                   <Search size={14} color={Colors.primary} strokeWidth={2.5} />
                   <Text style={styles.searchLinkText}>
-                    Learn more about {question.tags?.[0]?.replace(/-/g, " ") || question.subdomain}
+                    Learn more about{" "}
+                    {question.tags?.[0]?.replace(/-/g, " ") ||
+                      question.subdomain}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -490,7 +594,12 @@ export default function QuizScreen() {
 
       {/* ── Fixed bottom Next button (feedback phase only) ── */}
       {phase === "feedback" && (
-        <View style={styles.bottomBar}>
+        <View
+          style={[
+            styles.bottomBar,
+            { paddingBottom: Math.max(insets.bottom, Spacing.md) },
+          ]}
+        >
           <TouchableOpacity
             style={[
               styles.nextButton,
@@ -589,8 +698,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
-
-
 
   /* ── Question prompt ── */
   title: {
@@ -717,7 +824,6 @@ const styles = StyleSheet.create({
   bottomBar: {
     paddingHorizontal: Spacing.screen,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
     backgroundColor: Colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
@@ -732,5 +838,21 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
     color: Colors.textInverse,
+  },
+
+  /* ── Practice mode banner ── */
+  practiceBanner: {
+    backgroundColor: Colors.warning + "18",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.screen,
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.warning + "40",
+  },
+  practiceBannerText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    color: Colors.warning,
+    letterSpacing: 0.3,
   },
 });

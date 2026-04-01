@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { Colors } from '@/constants/theme';
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -16,7 +18,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: Colors.background },
+            headerTintColor: Colors.textPrimary,
+            headerShadowVisible: false,
+            headerBackTitle: "Back",
+          }}
+        >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
         {/* 

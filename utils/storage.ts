@@ -12,6 +12,13 @@ export interface DailySession {
   currentIndex: number;
   score: number;
   results?: ("correct" | "incorrect" | null)[];
+  // Retry mode fields
+  retryMode?: boolean;
+  retryQuestionIds?: string[];
+  retryResults?: ("correct" | "incorrect" | null)[];
+  originalQuestionIds?: string[];
+  originalResults?: ("correct" | "incorrect" | null)[];
+  originalScore?: number;
 }
 
 export interface UserStats {
@@ -22,7 +29,7 @@ export interface UserStats {
 }
 
 export const getTodayString = () => {
-  const date = new Date("2026-03-26");
+  const date = new Date("2026-03-31");
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
 };
 

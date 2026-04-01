@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 
 interface ScreenContainerProps {
@@ -11,38 +11,29 @@ interface ScreenContainerProps {
   scrollable?: boolean;
   /** Background color of the screen. Defaults to Colors.background */
   backgroundColor?: string;
+  /** Edges to apply safe area padding to */
+  edges?: ('top' | 'right' | 'bottom' | 'left')[];
 }
 
-/**
- * ScreenContainer
- *
- * The standard root wrapper for every screen in the app.
- * Uses SafeAreaView so content is always offset below the status bar
- * (and above the home indicator on newer iPhones) without any visible band —
- * the background color fills the inset area seamlessly.
- *
- * Usage (non-scrolling):
- *   <ScreenContainer style={{ justifyContent: 'center', alignItems: 'center' }}>
- *     ...
- *   </ScreenContainer>
- *
- * Usage (scrolling):
- *   <ScreenContainer scrollable>
- *     ...
- *   </ScreenContainer>
- */
 export function ScreenContainer({
   children,
   style,
   scrollable = false,
   backgroundColor = Colors.background,
+  edges = ['top'],
 }: ScreenContainerProps) {
+  const insets = useSafeAreaInsets();
+
   if (scrollable) {
     return (
-      <SafeAreaView style={[styles.root, { backgroundColor }]}>
+      <SafeAreaView edges={edges} style={[styles.root, { backgroundColor }]}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, style]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom },
+            style,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {children}
@@ -52,7 +43,7 @@ export function ScreenContainer({
   }
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor }, style]}>
+    <SafeAreaView edges={edges} style={[styles.root, { backgroundColor }, style]}>
       {children}
     </SafeAreaView>
   );
