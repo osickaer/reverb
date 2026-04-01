@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -28,7 +28,6 @@ import { loadSession, DailySession, saveSession } from "../utils/storage";
 import { seedQuestions } from "../data/questions";
 import { getThemeForDomain } from "../constants/domain-themes";
 import {
-  Colors,
   FontSize,
   FontWeight,
   LineHeight,
@@ -36,6 +35,7 @@ import {
   Shadow,
   Spacing,
 } from "../constants/theme";
+import { useThemeColors } from "@/contexts/theme-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { ScoreRing } from "@/components/score-ring";
 
@@ -52,21 +52,23 @@ function getTagline(score: number, total: number): string {
 
 // ─── Type Breakdown Row ─────────────────────────────────────────────────────────
 
-const typeConfig = {
-  new: { label: "New", Icon: Sparkles, color: Colors.primary },
-  missed: { label: "Previously Missed", Icon: Target, color: Colors.incorrect },
-  resurfaced: { label: "Knowledge Check", Icon: RotateCcw, color: Colors.correct },
-};
-
 function TypeBreakdownRow({
   type,
   correctCount,
   totalCount,
+  colors,
 }: {
   type: "new" | "missed" | "resurfaced";
   correctCount: number;
   totalCount: number;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
+  const typeConfig = {
+    new: { label: "New", Icon: Sparkles, color: colors.primary },
+    missed: { label: "Previously Missed", Icon: Target, color: colors.incorrect },
+    resurfaced: { label: "Knowledge Check", Icon: RotateCcw, color: colors.correct },
+  };
+
   const config = typeConfig[type];
   const IconComponent = config.Icon;
   const missedCount = totalCount - correctCount;
@@ -77,14 +79,14 @@ function TypeBreakdownRow({
         <IconComponent size={16} color={config.color} strokeWidth={2} />
       </View>
       <View style={styles.typeRowContent}>
-        <Text style={styles.typeLabel}>{config.label}</Text>
-        <Text style={styles.typeDetail}>
+        <Text style={[styles.typeLabel, { color: colors.textPrimary }]}>{config.label}</Text>
+        <Text style={[styles.typeDetail, { color: colors.textTertiary }]}>
           {totalCount} question{totalCount !== 1 ? "s" : ""} —{" "}
-          <Text style={{ color: Colors.correct, fontWeight: FontWeight.semibold }}>
+          <Text style={{ color: colors.correct, fontWeight: FontWeight.semibold }}>
             {correctCount} correct
           </Text>
           {missedCount > 0 && (
-            <Text style={{ color: Colors.incorrect, fontWeight: FontWeight.semibold }}>
+            <Text style={{ color: colors.incorrect, fontWeight: FontWeight.semibold }}>
               , {missedCount} missed
             </Text>
           )}
@@ -101,11 +103,13 @@ function SubjectRow({
   correct,
   total,
   improved,
+  colors,
 }: {
   domain: string;
   correct: number;
   total: number;
   improved: boolean;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   const theme = getThemeForDomain(domain);
   const DomainIcon = theme.icon;
@@ -116,27 +120,27 @@ function SubjectRow({
       <View style={[styles.subjectIconWrap, { backgroundColor: theme.tint }]}>
         <DomainIcon size={16} color={theme.accent} strokeWidth={2} />
       </View>
-      <Text style={styles.subjectDomain}>{domain}</Text>
+      <Text style={[styles.subjectDomain, { color: colors.textPrimary }]}>{domain}</Text>
       <View style={styles.subjectRight}>
         {improved && (
-          <View style={styles.improvedBadge}>
-            <TrendingUp size={12} color={Colors.correct} strokeWidth={2.5} />
-            <Text style={styles.improvedText}>Improved</Text>
+          <View style={[styles.improvedBadge, { backgroundColor: colors.correct + "15" }]}>
+            <TrendingUp size={12} color={colors.correct} strokeWidth={2.5} />
+            <Text style={[styles.improvedText, { color: colors.correct }]}>Improved</Text>
           </View>
         )}
-        <View style={styles.subjectBarTrack}>
+        <View style={[styles.subjectBarTrack, { backgroundColor: colors.border + "40" }]}>
           <View
             style={[
               styles.subjectBarFill,
               {
                 width: `${Math.max(pct * 100, 8)}%`,
                 backgroundColor:
-                  pct >= 0.8 ? Colors.correct : pct >= 0.5 ? Colors.warning : Colors.incorrect,
+                  pct >= 0.8 ? colors.correct : pct >= 0.5 ? colors.warning : colors.incorrect,
               },
             ]}
           />
         </View>
-        <Text style={styles.subjectFraction}>
+        <Text style={[styles.subjectFraction, { color: colors.textTertiary }]}>
           {correct}/{total}
         </Text>
       </View>
@@ -150,14 +154,22 @@ function QuestionReviewItem({
   questionId,
   result,
   questionType,
+  colors,
 }: {
   questionId: string;
   result: "correct" | "incorrect" | null;
   questionType?: "new" | "missed" | "resurfaced";
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const question = seedQuestions.find((q) => q.id === questionId);
   if (!question) return null;
+
+  const typeConfig = {
+    new: { label: "New", Icon: Sparkles, color: colors.primary },
+    missed: { label: "Previously Missed", Icon: Target, color: colors.incorrect },
+    resurfaced: { label: "Knowledge Check", Icon: RotateCcw, color: colors.correct },
+  };
 
   const theme = getThemeForDomain(question.domain);
   const DomainIcon = theme.icon;
@@ -168,39 +180,35 @@ function QuestionReviewItem({
 
   return (
     <TouchableOpacity
-      style={styles.reviewItem}
+      style={[styles.reviewItem, { borderBottomColor: colors.border + "50" }]}
       activeOpacity={0.7}
       onPress={() => setExpanded(!expanded)}
     >
       <View style={styles.reviewItemHeader}>
-        {/* Result icon */}
         <View
           style={[
             styles.reviewResultIcon,
-            { backgroundColor: isCorrect ? Colors.correct + "18" : Colors.incorrect + "18" },
+            { backgroundColor: isCorrect ? colors.correct + "18" : colors.incorrect + "18" },
           ]}
         >
           {isCorrect ? (
-            <Check size={14} color={Colors.correct} strokeWidth={2.5} />
+            <Check size={14} color={colors.correct} strokeWidth={2.5} />
           ) : (
-            <X size={14} color={Colors.incorrect} strokeWidth={2.5} />
+            <X size={14} color={colors.incorrect} strokeWidth={2.5} />
           )}
         </View>
 
-        {/* Question text */}
-        <Text style={styles.reviewPrompt} numberOfLines={expanded ? undefined : 1}>
+        <Text style={[styles.reviewPrompt, { color: colors.textPrimary }]} numberOfLines={expanded ? undefined : 1}>
           {question.prompt}
         </Text>
 
-        {/* Expand chevron */}
         {expanded ? (
-          <ChevronUp size={16} color={Colors.textTertiary} strokeWidth={2} />
+          <ChevronUp size={16} color={colors.textTertiary} strokeWidth={2} />
         ) : (
-          <ChevronDown size={16} color={Colors.textTertiary} strokeWidth={2} />
+          <ChevronDown size={16} color={colors.textTertiary} strokeWidth={2} />
         )}
       </View>
 
-      {/* Badges row */}
       <View style={styles.reviewBadges}>
         <View style={[styles.miniBadge, { backgroundColor: theme.tint, borderColor: theme.accent + "30" }]}>
           <DomainIcon size={11} color={theme.accent} strokeWidth={2} />
@@ -219,18 +227,17 @@ function QuestionReviewItem({
         )}
       </View>
 
-      {/* Expanded content */}
       {expanded && (
         <View style={styles.reviewExpanded}>
-          <View style={[styles.reviewCorrectAnswer, isCorrect && { backgroundColor: Colors.correct + "10", borderLeftColor: Colors.correct }]}>
-            <Text style={[styles.reviewCorrectLabel, isCorrect && { color: Colors.correct }]}>
+          <View style={[styles.reviewCorrectAnswer, isCorrect ? { backgroundColor: colors.correct + "10", borderLeftColor: colors.correct } : { backgroundColor: colors.incorrect + "10", borderLeftColor: colors.incorrect }]}>
+            <Text style={[styles.reviewCorrectLabel, { color: isCorrect ? colors.correct : colors.incorrect }]}>
               {isCorrect ? "Your answer" : "Correct answer"}
             </Text>
-            <Text style={styles.reviewCorrectText}>
+            <Text style={[styles.reviewCorrectText, { color: colors.textPrimary }]}>
               {question.choices[question.correctIndex]}
             </Text>
           </View>
-          <Text style={styles.reviewExplanation}>{question.explanation}</Text>
+          <Text style={[styles.reviewExplanation, { color: colors.textSecondary }]}>{question.explanation}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -242,22 +249,24 @@ function QuestionReviewItem({
 function RetryResultsCard({
   retryQuestionIds,
   retryResults,
+  colors,
 }: {
   retryQuestionIds: string[];
   retryResults: ("correct" | "incorrect" | null)[];
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   const retryCorrect = retryResults.filter((r) => r === "correct").length;
   const retryTotal = retryQuestionIds.length;
 
   return (
-    <View style={styles.retryResultsCard}>
+    <View style={[styles.retryResultsCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "20" }]}>
       <View style={styles.retryResultsHeader}>
-        <View style={styles.retryResultsIconWrap}>
-          <RefreshCw size={18} color={Colors.primary} strokeWidth={2} />
+        <View style={[styles.retryResultsIconWrap, { backgroundColor: colors.primary + "15" }]}>
+          <RefreshCw size={18} color={colors.primary} strokeWidth={2} />
         </View>
         <View>
-          <Text style={styles.retryResultsTitle}>Practice Round Results</Text>
-          <Text style={styles.retryResultsSubtitle}>
+          <Text style={[styles.retryResultsTitle, { color: colors.textPrimary }]}>Practice Round Results</Text>
+          <Text style={[styles.retryResultsSubtitle, { color: colors.textTertiary }]}>
             You got {retryCorrect} of {retryTotal} correct on retry
           </Text>
         </View>
@@ -273,16 +282,16 @@ function RetryResultsCard({
               <View
                 style={[
                   styles.retryResultDot,
-                  { backgroundColor: isCorrect ? Colors.correct : Colors.incorrect },
+                  { backgroundColor: isCorrect ? colors.correct : colors.incorrect },
                 ]}
               >
                 {isCorrect ? (
-                  <Check size={10} color={Colors.textInverse} strokeWidth={3} />
+                  <Check size={10} color={colors.textInverse} strokeWidth={3} />
                 ) : (
-                  <X size={10} color={Colors.textInverse} strokeWidth={3} />
+                  <X size={10} color={colors.textInverse} strokeWidth={3} />
                 )}
               </View>
-              <Text style={styles.retryResultText} numberOfLines={1}>
+              <Text style={[styles.retryResultText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {question.prompt}
               </Text>
             </View>
@@ -290,9 +299,9 @@ function RetryResultsCard({
         })}
       </View>
 
-      <View style={styles.retryInfoNote}>
-        <Info size={13} color={Colors.textTertiary} strokeWidth={2} />
-        <Text style={styles.retryInfoText}>
+      <View style={[styles.retryInfoNote, { borderTopColor: colors.primary + "20" }]}>
+        <Info size={13} color={colors.textTertiary} strokeWidth={2} />
+        <Text style={[styles.retryInfoText, { color: colors.textTertiary }]}>
           These results are for practice only and were not saved.
         </Text>
       </View>
@@ -305,17 +314,25 @@ function RetryResultsCard({
 export default function SessionSummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
   const [session, setSession] = useState<DailySession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      const s = await loadSession();
-      setSession(s);
-      setLoading(false);
-    };
-    fetchSession();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const fetchSession = async () => {
+        setLoading(true);
+        const s = await loadSession();
+        if (active) {
+          setSession(s);
+          setLoading(false);
+        }
+      };
+      fetchSession();
+      return () => { active = false; };
+    }, [])
+  );
 
   // Derived data
   const sessionData = useMemo(() => {
@@ -324,14 +341,12 @@ export default function SessionSummaryScreen() {
     const { questionIds, results, questionTypes, score } = session;
     const total = questionIds.length;
 
-    // Question type breakdown
     const typeStats: Record<"new" | "missed" | "resurfaced", { correct: number; total: number }> = {
       new: { correct: 0, total: 0 },
       missed: { correct: 0, total: 0 },
       resurfaced: { correct: 0, total: 0 },
     };
 
-    // Subject performance
     const subjectStats: Record<string, { correct: number; total: number; improved: boolean }> = {};
 
     questionIds.forEach((id, i) => {
@@ -339,11 +354,9 @@ export default function SessionSummaryScreen() {
       const result = results?.[i] ?? null;
       const question = seedQuestions.find((q) => q.id === id);
 
-      // Type stats
       typeStats[qType].total += 1;
       if (result === "correct") typeStats[qType].correct += 1;
 
-      // Subject stats
       const domain = question?.domain ?? "Unknown";
       if (!subjectStats[domain]) {
         subjectStats[domain] = { correct: 0, total: 0, improved: false };
@@ -351,13 +364,11 @@ export default function SessionSummaryScreen() {
       subjectStats[domain].total += 1;
       if (result === "correct") subjectStats[domain].correct += 1;
 
-      // Mark as improved if a previously missed question was answered correctly
       if (qType === "missed" && result === "correct") {
         subjectStats[domain].improved = true;
       }
     });
 
-    // Missed question IDs for retry
     const missedIds = questionIds.filter((_, i) => results?.[i] === "incorrect");
 
     return { total, score, typeStats, subjectStats, missedIds };
@@ -365,8 +376,9 @@ export default function SessionSummaryScreen() {
 
   if (loading || !session || !sessionData) {
     return (
-      <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <ScreenContainer edges={['top', 'left', 'right']} style={{ justifyContent: "center", alignItems: "center" }}>
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
   }
@@ -384,28 +396,37 @@ export default function SessionSummaryScreen() {
       ...session,
       retryMode: true,
       retryQuestionIds: missedIds,
-      // Save original data for restore later
       originalQuestionIds: session.questionIds,
       originalResults: session.results ?? [],
       originalScore: session.score,
-      // Override for retry quiz
       questionIds: missedIds,
       currentIndex: 0,
       results: new Array(missedIds.length).fill(null),
     };
 
     await saveSession(retrySession);
+    // Push so summary stays in the stack — quiz dismiss will come back here
     router.push("/quiz");
   };
 
   return (
-    <ScreenContainer edges={['left', 'right']} style={styles.outerContainer}>
-      <Stack.Screen 
-        options={{ 
-          headerBackTitle: "Home", 
-          title: "Session Review",
-        }} 
-      />
+    <ScreenContainer edges={['top', 'left', 'right']} style={styles.outerContainer}>
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+
+      {/* ── Custom header bar ── */}
+      <View style={styles.customHeader}>
+        <View style={styles.customHeaderSpacer} />
+        <Text style={[styles.customHeaderTitle, { color: colors.textPrimary }]}>
+          Session Review
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.dismiss()}
+          style={styles.closeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <X size={20} color={colors.textTertiary} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -415,12 +436,12 @@ export default function SessionSummaryScreen() {
         {/* ── 1. Score Hero ── */}
         <View style={styles.heroSection}>
           <ScoreRing score={score} total={total} />
-          <Text style={styles.tagline}>{getTagline(score, total)}</Text>
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>{getTagline(score, total)}</Text>
         </View>
 
         {/* ── 2. Question Type Breakdown ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Question Breakdown</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Question Breakdown</Text>
           {(["new", "missed", "resurfaced"] as const).map((type) =>
             typeStats[type].total > 0 ? (
               <TypeBreakdownRow
@@ -428,14 +449,15 @@ export default function SessionSummaryScreen() {
                 type={type}
                 correctCount={typeStats[type].correct}
                 totalCount={typeStats[type].total}
+                colors={colors}
               />
             ) : null,
           )}
         </View>
 
         {/* ── 3. Subject Performance ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Subject Performance</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Subject Performance</Text>
           {Object.entries(subjectStats).map(([domain, stats]) => (
             <SubjectRow
               key={domain}
@@ -443,19 +465,21 @@ export default function SessionSummaryScreen() {
               correct={stats.correct}
               total={stats.total}
               improved={stats.improved}
+              colors={colors}
             />
           ))}
         </View>
 
         {/* ── 4. Question Review List ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Question Review</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Question Review</Text>
           {session.questionIds.map((id, i) => (
             <QuestionReviewItem
               key={id}
               questionId={id}
               result={session.results?.[i] ?? null}
               questionType={session.questionTypes?.[id]}
+              colors={colors}
             />
           ))}
         </View>
@@ -465,21 +489,26 @@ export default function SessionSummaryScreen() {
           <RetryResultsCard
             retryQuestionIds={session.retryQuestionIds!}
             retryResults={session.retryResults!}
+            colors={colors}
           />
         )}
 
         {/* ── 5. Retry Missed CTA ── */}
         {missedIds.length > 0 && (
           <View style={styles.retrySection}>
-            <TouchableOpacity style={styles.retryButton} activeOpacity={0.8} onPress={handleRetry}>
-              <RefreshCw size={18} color={Colors.textInverse} strokeWidth={2.5} />
-              <Text style={styles.retryButtonText}>
+            <TouchableOpacity 
+              style={[styles.retryButton, { backgroundColor: colors.primary }]} 
+              activeOpacity={0.8} 
+              onPress={handleRetry}
+            >
+              <RefreshCw size={18} color={colors.textInverse} strokeWidth={2.5} />
+              <Text style={[styles.retryButtonText, { color: colors.textInverse }]}>
                 Retry Missed Questions ({missedIds.length})
               </Text>
             </TouchableOpacity>
             <View style={styles.retryDisclaimer}>
-              <Lock size={13} color={Colors.textTertiary} strokeWidth={2} />
-              <Text style={styles.retryDisclaimerText}>
+              <Lock size={13} color={colors.textTertiary} strokeWidth={2} />
+              <Text style={[styles.retryDisclaimerText, { color: colors.textTertiary }]}>
                 Retried answers won't be saved — these questions will still appear as missed in
                 future sessions so you get another real chance at them.
               </Text>
@@ -489,12 +518,12 @@ export default function SessionSummaryScreen() {
 
         {/* ── 6. Back to Home ── */}
         <TouchableOpacity
-          style={styles.homeButton}
+          style={[styles.homeButton, { borderColor: colors.primary + "30", backgroundColor: colors.primary + "08" }]}
           activeOpacity={0.8}
-          onPress={() => router.replace("/")}
+          onPress={() => router.dismiss()}
         >
-          <Home size={16} color={Colors.primary} strokeWidth={2} />
-          <Text style={styles.homeButtonText}>Back to Home</Text>
+          <Home size={16} color={colors.primary} strokeWidth={2} />
+          <Text style={[styles.homeButtonText, { color: colors.primary }]}>Back to Home</Text>
         </TouchableOpacity>
 
         <View style={{ height: Spacing.xxl }} />
@@ -508,6 +537,25 @@ export default function SessionSummaryScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
+  },
+  customHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.screen,
+    paddingVertical: Spacing.md,
+  },
+  customHeaderSpacer: {
+    width: 28,
+  },
+  customHeaderTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    textAlign: "center",
+    flex: 1,
+  },
+  closeButton: {
+    padding: Spacing.xs,
   },
   scrollView: {
     flex: 1,
@@ -526,25 +574,21 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
-    color: Colors.textSecondary,
     marginTop: Spacing.base,
     textAlign: "center",
   },
 
   /* ── Card ── */
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.border + "60",
     ...Shadow.card,
   },
   cardTitle: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
     marginBottom: Spacing.md,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -570,12 +614,10 @@ const styles = StyleSheet.create({
   typeLabel: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
     marginBottom: 2,
   },
   typeDetail: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
   },
 
   /* ── Subject Performance ── */
@@ -595,7 +637,6 @@ const styles = StyleSheet.create({
   subjectDomain: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
     width: 80,
   },
   subjectRight: {
@@ -607,7 +648,6 @@ const styles = StyleSheet.create({
   improvedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.correct + "15",
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.pill,
@@ -616,13 +656,11 @@ const styles = StyleSheet.create({
   improvedText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    color: Colors.correct,
   },
   subjectBarTrack: {
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.border + "40",
     overflow: "hidden",
   },
   subjectBarFill: {
@@ -632,7 +670,6 @@ const styles = StyleSheet.create({
   subjectFraction: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    color: Colors.textTertiary,
     width: 24,
     textAlign: "right",
   },
@@ -641,7 +678,6 @@ const styles = StyleSheet.create({
   reviewItem: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border + "50",
   },
   reviewItemHeader: {
     flexDirection: "row",
@@ -658,14 +694,13 @@ const styles = StyleSheet.create({
   reviewPrompt: {
     flex: 1,
     fontSize: FontSize.sm,
-    color: Colors.textPrimary,
     lineHeight: LineHeight.tight,
   },
   reviewBadges: {
     flexDirection: "row",
     gap: Spacing.xs,
     marginTop: Spacing.xs,
-    marginLeft: 32, // align with text, past the icon
+    marginLeft: 32,
   },
   miniBadge: {
     flexDirection: "row",
@@ -686,16 +721,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   reviewCorrectAnswer: {
-    backgroundColor: Colors.incorrect + "10",
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     borderLeftWidth: 2,
-    borderLeftColor: Colors.incorrect,
   },
   reviewCorrectLabel: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    color: Colors.incorrect,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -703,22 +735,18 @@ const styles = StyleSheet.create({
   reviewCorrectText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
   },
   reviewExplanation: {
     fontSize: FontSize.sm,
     lineHeight: LineHeight.normal,
-    color: Colors.textSecondary,
   },
 
   /* ── Retry Results Card ── */
   retryResultsCard: {
-    backgroundColor: Colors.primary + "08",
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.primary + "20",
   },
   retryResultsHeader: {
     flexDirection: "row",
@@ -730,18 +758,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.primary + "15",
     justifyContent: "center",
     alignItems: "center",
   },
   retryResultsTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
   },
   retryResultsSubtitle: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
     marginTop: 2,
   },
   retryResultsList: {
@@ -762,7 +787,6 @@ const styles = StyleSheet.create({
   retryResultText: {
     flex: 1,
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
   },
   retryInfoNote: {
     flexDirection: "row",
@@ -771,13 +795,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.primary + "20",
   },
   retryInfoText: {
     flex: 1,
     fontSize: 11,
     lineHeight: 16,
-    color: Colors.textTertiary,
     fontStyle: "italic",
   },
 
@@ -789,7 +811,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
     paddingVertical: Spacing.base,
     borderRadius: Radius.md,
     gap: Spacing.sm,
@@ -798,7 +819,6 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textInverse,
   },
   retryDisclaimer: {
     flexDirection: "row",
@@ -811,7 +831,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     lineHeight: 16,
-    color: Colors.textTertiary,
   },
 
   /* ── Home Button ── */
@@ -822,13 +841,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.base,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.primary + "30",
-    backgroundColor: Colors.primary + "08",
     gap: Spacing.sm,
   },
   homeButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.primary,
   },
 });

@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { seedQuestions } from '../data/questions';
 import { loadSession, saveSession, updateQuestionStats, DailySession, completeSession } from '../utils/storage';
-import { Colors, FontSize, FontWeight, Spacing } from '../constants/theme';
+import { FontSize, FontWeight, Spacing } from '../constants/theme';
+import { useThemeColors } from '@/contexts/theme-context';
 import { ScreenContainer } from '@/components/screen-container';
 
 export default function AnswerFeedbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const colors = useThemeColors();
   const selectedIndex = parseInt(params.selectedIndex as string);
   
   const [session, setSession] = useState<DailySession | null>(null);
@@ -53,7 +55,7 @@ export default function AnswerFeedbackScreen() {
   if (loading || !session || !updatedSession) {
     return (
       <ScreenContainer style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
   }
@@ -80,17 +82,17 @@ export default function AnswerFeedbackScreen() {
 
   return (
     <ScreenContainer style={styles.container}>
-      <Text style={[styles.title, isCorrect ? styles.correctText : styles.wrongText]}>
+      <Text style={[styles.title, isCorrect ? { color: colors.correct } : { color: colors.incorrect }]}>
         {isCorrect ? 'Correct!' : 'Incorrect'}
       </Text>
       
       {!isCorrect && (
-        <Text style={styles.correctAnswerInfo}>
+        <Text style={[styles.correctAnswerInfo, { color: colors.textSecondary }]}>
           The correct answer was: {question.choices[question.correctIndex]}
         </Text>
       )}
       
-      <Text style={styles.explanation}>
+      <Text style={[styles.explanation, { color: colors.textTertiary }]}>
         {question.explanation}
       </Text>
 
@@ -116,24 +118,16 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     marginBottom: Spacing.base,
   },
-  correctText: {
-    color: Colors.correct,
-  },
-  wrongText: {
-    color: Colors.incorrect,
-  },
   correctAnswerInfo: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
     marginBottom: Spacing.base,
     textAlign: 'center',
-    color: Colors.textSecondary,
   },
   explanation: {
     fontSize: FontSize.md,
     textAlign: 'center',
     marginBottom: Spacing.xxl,
-    color: Colors.textTertiary,
     lineHeight: 24,
   },
   buttonContainer: {

@@ -9,10 +9,13 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import {
   ArrowRight,
+  Moon,
+  Monitor,
   Play,
   RefreshCw,
   RotateCcw,
   Sparkles,
+  Sun,
   Target,
   Zap,
 } from "lucide-react-native";
@@ -25,8 +28,6 @@ import {
 import { seedQuestions } from "../../data/questions";
 import { getThemeForDomain } from "../../constants/domain-themes";
 import {
-  Colors,
-  CommonStyles,
   FontSize,
   FontWeight,
   LineHeight,
@@ -34,6 +35,7 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/theme";
+import { useAppTheme, useThemeColors } from "@/contexts/theme-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { ScoreRing } from "@/components/score-ring";
 
@@ -65,13 +67,11 @@ function offsetDateString(daysAgo: number): string {
 /** Calculate the current streak from a history record (keyed by YYYY-MM-DD). */
 function calcStreak(history: Record<string, unknown>, todayCompleted: boolean): number {
   let streak = 0;
-  // Start checking from today backwards
   for (let i = 0; i < 365; i++) {
     const dateStr = offsetDateString(i);
-    // Today: count only if session is completed
     if (i === 0) {
       if (todayCompleted) streak += 1;
-      else break; // No session today yet — streak is 0
+      else break;
     } else {
       if (history[dateStr]) streak += 1;
       else break;
@@ -82,13 +82,13 @@ function calcStreak(history: Record<string, unknown>, todayCompleted: boolean): 
 
 // ─── Session preview labels ─────────────────────────────────────────────────
 
-const typeLabels: Record<string, { label: string; Icon: typeof Sparkles; color: string }> = {
-  new: { label: "new", Icon: Sparkles, color: Colors.primary },
-  missed: { label: "missed", Icon: Target, color: Colors.incorrect },
-  resurfaced: { label: "review", Icon: RotateCcw, color: Colors.correct },
-};
+function SessionPreviewChips({ session, colors }: { session: DailySession; colors: ReturnType<typeof useThemeColors> }) {
+  const typeLabels: Record<string, { label: string; Icon: typeof Sparkles; color: string }> = {
+    new: { label: "new", Icon: Sparkles, color: colors.primary },
+    missed: { label: "missed", Icon: Target, color: colors.incorrect },
+    resurfaced: { label: "review", Icon: RotateCcw, color: colors.correct },
+  };
 
-function SessionPreviewChips({ session }: { session: DailySession }) {
   const counts: Record<string, number> = {};
   if (session.questionTypes) {
     for (const type of Object.values(session.questionTypes)) {
@@ -145,10 +145,12 @@ function DomainMiniCard({
   domain,
   correct,
   total,
+  colors,
 }: {
   domain: string;
   correct: number;
   total: number;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   const theme = getThemeForDomain(domain);
   const DomainIcon = theme.icon;
@@ -161,10 +163,10 @@ function DomainMiniCard({
       </View>
       <View style={domainStyles.info}>
         <View style={domainStyles.titleRow}>
-          <Text style={domainStyles.name}>{domain}</Text>
+          <Text style={[domainStyles.name, { color: colors.textPrimary }]}>{domain}</Text>
           <Text style={[domainStyles.pct, { color: theme.accent }]}>{pct}%</Text>
         </View>
-        <View style={domainStyles.barTrack}>
+        <View style={[domainStyles.barTrack, { backgroundColor: colors.divider }]}>
           <View
             style={[
               domainStyles.barFill,
@@ -172,7 +174,7 @@ function DomainMiniCard({
             ]}
           />
         </View>
-        <Text style={domainStyles.detail}>
+        <Text style={[domainStyles.detail, { color: colors.textTertiary }]}>
           {correct}/{total} correct
         </Text>
       </View>
@@ -203,7 +205,6 @@ const domainStyles = StyleSheet.create({
   name: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
   },
   pct: {
     fontSize: FontSize.sm,
@@ -212,7 +213,6 @@ const domainStyles = StyleSheet.create({
   barTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.divider,
     marginTop: 4,
     overflow: "hidden",
   },
@@ -222,8 +222,54 @@ const domainStyles = StyleSheet.create({
   },
   detail: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
     marginTop: 3,
+  },
+});
+
+// ─── Theme Toggle Button ────────────────────────────────────────────────────
+
+function ThemeToggle() {
+  const { preference, cycleTheme, colors } = useAppTheme();
+
+  const icon =
+    preference === 'dark' ? Moon
+    : preference === 'light' ? Sun
+    : Monitor;
+
+  const IconComp = icon;
+  const label =
+    preference === 'dark' ? 'Dark'
+    : preference === 'light' ? 'Light'
+    : 'Auto';
+
+  return (
+    <TouchableOpacity
+      style={[themeToggleStyles.button, {
+        backgroundColor: colors.surface,
+        borderColor: colors.border + '60',
+      }]}
+      activeOpacity={0.7}
+      onPress={cycleTheme}
+    >
+      <IconComp size={14} color={colors.textTertiary} strokeWidth={2} />
+      <Text style={[themeToggleStyles.label, { color: colors.textTertiary }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const themeToggleStyles = StyleSheet.create({
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  label: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
   },
 });
 
@@ -231,6 +277,7 @@ const domainStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [session, setSession] = useState<DailySession | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -294,7 +341,7 @@ export default function HomeScreen() {
   if (loading || !session || !stats || !derivedStats) {
     return (
       <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
   }
@@ -312,41 +359,44 @@ export default function HomeScreen() {
     <ScreenContainer scrollable style={styles.content}>
       {/* ── Streak Header ── */}
       <View style={styles.greetingSection}>
-        {/* Top row: greeting + streak flame */}
+        {/* Top row: greeting + theme toggle + streak flame */}
         <View style={styles.greetingRow}>
-          <Text style={styles.greeting}>{getGreeting()} 👋</Text>
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakFlame}>🔥</Text>
-            <Text style={styles.streakCount}>{streak}</Text>
+          <Text style={[styles.greeting, { color: colors.textPrimary }]}>{getGreeting()} 👋</Text>
+          <View style={styles.headerActions}>
+            <ThemeToggle />
+            <View style={[styles.streakBadge, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30" }]}>
+              <Text style={styles.streakFlame}>🔥</Text>
+              <Text style={[styles.streakCount, { color: colors.warning }]}>{streak}</Text>
+            </View>
           </View>
         </View>
 
         {streak === 0 && (
-          <Text style={styles.streakHint}>Complete today's session to start your streak!</Text>
+          <Text style={[styles.streakHint, { color: colors.textTertiary }]}>Complete today's session to start your streak!</Text>
         )}
       </View>
 
       {/* ══════════════════════════════════════════════════════════════════════
           TODAY'S SESSION — state-aware card
           ══════════════════════════════════════════════════════════════════════ */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionLabel}>TODAY</Text>
+      <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
+        <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>TODAY</Text>
 
         {/* ── Available ── */}
         {session.status === "available" && (
           <View style={styles.todayInner}>
-            <Text style={styles.todayTitle}>Today's 5</Text>
-            <Text style={styles.todayDesc}>
+            <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Today's 5</Text>
+            <Text style={[styles.todayDesc, { color: colors.textSecondary }]}>
               Ready to stretch your knowledge? Your daily session is waiting.
             </Text>
-            <SessionPreviewChips session={session} />
+            <SessionPreviewChips session={session} colors={colors} />
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
               onPress={() => router.push("/quiz")}
             >
-              <Play size={16} color={Colors.textInverse} strokeWidth={2.5} fill={Colors.textInverse} />
-              <Text style={styles.primaryButtonText}>Start Session</Text>
+              <Play size={16} color={colors.textInverse} strokeWidth={2.5} fill={colors.textInverse} />
+              <Text style={[styles.primaryButtonText, { color: colors.textInverse }]}>Start Session</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -354,8 +404,8 @@ export default function HomeScreen() {
         {/* ── In-progress ── */}
         {isInProgress && (
           <View style={styles.todayInner}>
-            <Text style={styles.todayTitle}>Session In Progress</Text>
-            <Text style={styles.todayDesc}>
+            <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Session In Progress</Text>
+            <Text style={[styles.todayDesc, { color: colors.textSecondary }]}>
               You're on question {Math.min(session.currentIndex + 1, session.questionIds.length)} of{" "}
               {session.questionIds.length}. Pick up where you left off.
             </Text>
@@ -369,10 +419,11 @@ export default function HomeScreen() {
                     key={i}
                     style={[
                       styles.miniProgressDot,
-                      result === "correct" && { backgroundColor: Colors.correct },
-                      result === "incorrect" && { backgroundColor: Colors.incorrect },
+                      { backgroundColor: colors.border },
+                      result === "correct" && { backgroundColor: colors.correct },
+                      result === "incorrect" && { backgroundColor: colors.incorrect },
                       !result && i === session.currentIndex && {
-                        backgroundColor: Colors.primary,
+                        backgroundColor: colors.primary,
                         transform: [{ scale: 1.2 }],
                       },
                     ]}
@@ -382,12 +433,12 @@ export default function HomeScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
               onPress={() => router.push("/quiz")}
             >
-              <ArrowRight size={16} color={Colors.textInverse} strokeWidth={2.5} />
-              <Text style={styles.primaryButtonText}>Resume Session</Text>
+              <ArrowRight size={16} color={colors.textInverse} strokeWidth={2.5} />
+              <Text style={[styles.primaryButtonText, { color: colors.textInverse }]}>Resume Session</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -396,27 +447,27 @@ export default function HomeScreen() {
         {isCompleted && (
           <View style={styles.todayInner}>
             <ScoreRing score={session.score} total={session.questionIds.length} size={100} strokeWidth={10} />
-            <Text style={styles.todayTagline}>
+            <Text style={[styles.todayTagline, { color: colors.textSecondary }]}>
               {getTagline(session.score, session.questionIds.length)}
             </Text>
 
             <View style={styles.completedButtons}>
               <TouchableOpacity
-                style={styles.outlinedButton}
+                style={[styles.outlinedButton, { borderColor: colors.primary + "30", backgroundColor: colors.primary + "08" }]}
                 activeOpacity={0.8}
                 onPress={() => router.push("/session-summary")}
               >
-                <Text style={styles.outlinedButtonText}>Review Full Session</Text>
+                <Text style={[styles.outlinedButtonText, { color: colors.primary }]}>Review Full Session</Text>
               </TouchableOpacity>
 
               {missedIds.length > 0 && (
                 <TouchableOpacity
-                  style={[styles.outlinedButton, { borderColor: Colors.incorrect + "30", backgroundColor: Colors.incorrect + "08" }]}
+                  style={[styles.outlinedButton, { borderColor: colors.incorrect + "30", backgroundColor: colors.incorrect + "08" }]}
                   activeOpacity={0.8}
                   onPress={() => router.push("/session-summary")}
                 >
-                  <RefreshCw size={14} color={Colors.incorrect} strokeWidth={2.5} />
-                  <Text style={[styles.outlinedButtonText, { color: Colors.incorrect }]}>
+                  <RefreshCw size={14} color={colors.incorrect} strokeWidth={2.5} />
+                  <Text style={[styles.outlinedButtonText, { color: colors.incorrect }]}>
                     Retry Missed ({missedIds.length})
                   </Text>
                 </TouchableOpacity>
@@ -430,22 +481,22 @@ export default function HomeScreen() {
           DOMAIN MASTERY
           ══════════════════════════════════════════════════════════════════════ */}
       {domains.length > 0 && (
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionLabel}>DOMAIN MASTERY</Text>
+        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>DOMAIN MASTERY</Text>
           {domains.map((d) => (
-            <DomainMiniCard key={d.domain} domain={d.domain} correct={d.correct} total={d.total} />
+            <DomainMiniCard key={d.domain} domain={d.domain} correct={d.correct} total={d.total} colors={colors} />
           ))}
         </View>
       )}
 
       {/* ── Weak spots ── */}
       {missedCount > 0 && (
-        <View style={styles.weakCard}>
+        <View style={[styles.weakCard, { backgroundColor: colors.surface, borderLeftColor: colors.warning }]}>
           <View style={styles.weakHeader}>
-            <Zap size={16} color={Colors.warning} strokeWidth={2.5} />
-            <Text style={styles.weakTitle}>Weak Spots</Text>
+            <Zap size={16} color={colors.warning} strokeWidth={2.5} />
+            <Text style={[styles.weakTitle, { color: colors.textPrimary }]}>Weak Spots</Text>
           </View>
-          <Text style={styles.weakBody}>
+          <Text style={[styles.weakBody, { color: colors.textSecondary }]}>
             You have {missedCount} identified weak-spot{" "}
             {missedCount === 1 ? "question" : "questions"}. Reverb automatically resurfaces these
             in future sessions to build retention.
@@ -475,7 +526,6 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
     flex: 1,
   },
 
@@ -486,16 +536,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: Spacing.lg,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
   streakBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.warning + "15",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.warning + "30",
   },
   streakFlame: {
     fontSize: FontSize.md,
@@ -503,11 +556,9 @@ const styles = StyleSheet.create({
   streakCount: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    color: Colors.warning,
   },
   streakHint: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
     textAlign: "center",
     marginTop: Spacing.md,
     fontStyle: "italic",
@@ -515,18 +566,15 @@ const styles = StyleSheet.create({
 
   /* ── Section card ── */
   sectionCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.border + "60",
     ...Shadow.card,
   },
   sectionLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
-    color: Colors.textTertiary,
     letterSpacing: 1,
     marginBottom: Spacing.md,
   },
@@ -538,20 +586,17 @@ const styles = StyleSheet.create({
   todayTitle: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
     textAlign: "center",
   },
   todayDesc: {
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: LineHeight.relaxed,
   },
   todayTagline: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
-    color: Colors.textSecondary,
     marginTop: Spacing.md,
     textAlign: "center",
   },
@@ -567,7 +612,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.border,
   },
 
   /* ── Buttons ── */
@@ -575,7 +619,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
     paddingVertical: Spacing.base,
     paddingHorizontal: Spacing.xxl,
     borderRadius: Radius.md,
@@ -587,7 +630,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textInverse,
   },
   completedButtons: {
     width: "100%",
@@ -601,24 +643,19 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.base,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.primary + "30",
-    backgroundColor: Colors.primary + "08",
     gap: Spacing.sm,
   },
   outlinedButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.primary,
   },
 
   /* ── Weak spots ── */
   weakCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.base,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.warning,
     ...Shadow.card,
   },
   weakHeader: {
@@ -630,11 +667,9 @@ const styles = StyleSheet.create({
   weakTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
   },
   weakBody: {
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
     lineHeight: LineHeight.relaxed,
   },
 });

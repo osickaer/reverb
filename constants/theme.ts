@@ -8,9 +8,9 @@
  *   import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
  */
 
-// ─── Colors ──────────────────────────────────────────────────────────────────
+// ─── Light Colors ────────────────────────────────────────────────────────────
 
-export const Colors = {
+export const LightColors = {
   // Primary brand color — iOS blue
   primary: '#007AFF',
 
@@ -34,10 +34,57 @@ export const Colors = {
   border: '#dee2e6',
   divider: '#F2F2F7',
 
-  // Tab bar (kept for expo tabs compatibility)
+  // Tab bar
   tint: '#007AFF',
   tabIconDefault: '#8E8E93',
   tabIconSelected: '#007AFF',
+};
+
+// ─── Dark Colors ─────────────────────────────────────────────────────────────
+
+export const DarkColors = {
+  // Primary brand color — slightly brighter for dark backgrounds
+  primary: '#0A84FF',
+
+  // Semantic
+  correct: '#30D158',
+  incorrect: '#FF453A',
+  warning: '#FF9F0A',
+
+  // Backgrounds
+  background: '#000000',
+  surface: '#1C1C1E',
+  surfaceAlt: '#2C2C2E',
+
+  // Text
+  textPrimary: '#F2F2F7',
+  textSecondary: '#EBEBF5',
+  textTertiary: '#8E8E93',
+  textInverse: '#000000',
+
+  // Borders & dividers
+  border: '#38383A',
+  divider: '#2C2C2E',
+
+  // Tab bar
+  tint: '#0A84FF',
+  tabIconDefault: '#8E8E93',
+  tabIconSelected: '#0A84FF',
+};
+
+// ─── Color type ──────────────────────────────────────────────────────────────
+
+export type AppColors = typeof LightColors;
+
+/** Get the color palette for a given color scheme */
+export function getColors(scheme: 'light' | 'dark'): AppColors {
+  return scheme === 'dark' ? DarkColors : LightColors;
+}
+
+// ─── Legacy static export (for code that hasn't migrated to useThemeColors) ─
+// Defaults to light for backward compatibility
+export const Colors = {
+  ...LightColors,
 
   // Legacy — kept for @react-navigation/native ThemeProvider
   light: {
@@ -122,23 +169,24 @@ export const Shadow = {
 
 // ─── Common StyleSheet fragments ─────────────────────────────────────────────
 // Reusable style objects you can spread into StyleSheet.create blocks.
+// NOTE: These use LightColors for backwards compat. Prefer useThemeColors() in screens.
 
 export const CommonStyles = {
   /** Full-screen centered container (loading states, simple screens) */
   screenContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: LightColors.background,
   },
   /** Centered overlay (loading spinners, error states) */
   centered: {
     flex: 1,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
-    backgroundColor: Colors.background,
+    backgroundColor: LightColors.background,
   },
   /** White card with standard radius and shadow */
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: LightColors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     ...Shadow.card,
@@ -147,20 +195,20 @@ export const CommonStyles = {
   sectionTitle: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
+    color: LightColors.textPrimary,
     marginBottom: Spacing.base,
   },
   /** Muted body text */
   bodyText: {
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
+    color: LightColors.textSecondary,
     lineHeight: LineHeight.normal,
   },
   /** Small uppercase label (metric cards, tags) */
   labelText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    color: Colors.textTertiary,
+    color: LightColors.textTertiary,
     textTransform: 'uppercase' as const,
   },
 };

@@ -1,4 +1,5 @@
 import { ScreenContainer } from "@/components/screen-container";
+import { useThemeColors } from "@/contexts/theme-context";
 import { getThemeForDomain } from "@/constants/domain-themes";
 import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
@@ -24,7 +25,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Colors,
   FontSize,
   FontWeight,
   LineHeight,
@@ -49,19 +49,17 @@ type Phase = "answering" | "feedback";
 type QuestionResult = "correct" | "incorrect";
 
 // ─── Progress timeline ────────────────────────────────────────────────────────
-// Renders:  ✓ — 2 — 3 — 4 — 5
-// Past questions become a small Check or X icon.
-// The current step shows a bold number.
-// Future steps are muted numbers.
 
 function ProgressTimeline({
   total,
   currentIndex,
   results,
+  colors,
 }: {
   total: number;
   currentIndex: number;
   results: (QuestionResult | null)[];
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   return (
     <View style={tlStyles.row}>
@@ -72,36 +70,35 @@ function ProgressTimeline({
 
         return (
           <View key={i} style={tlStyles.item}>
-            {/* Connector line before each step (except first) */}
             {i > 0 && (
               <View
                 style={[
                   tlStyles.line,
+                  { backgroundColor: colors.border },
                   isPast && {
                     backgroundColor:
-                      result === "correct" ? Colors.correct : Colors.incorrect,
+                      result === "correct" ? colors.correct : colors.incorrect,
                   },
                 ]}
               />
             )}
 
-            {/* Node */}
             {isPast ? (
-              // Small icon — check for correct, X for incorrect
               <View style={tlStyles.iconWrap}>
                 {result === "correct" ? (
-                  <Check size={14} color={Colors.correct} strokeWidth={2.5} />
+                  <Check size={14} color={colors.correct} strokeWidth={2.5} />
                 ) : (
-                  <X size={14} color={Colors.incorrect} strokeWidth={2.5} />
+                  <X size={14} color={colors.incorrect} strokeWidth={2.5} />
                 )}
               </View>
             ) : (
-              // Number — bold for current, muted for future
               <View style={tlStyles.numberWrap}>
                 <Text
                   style={[
                     tlStyles.number,
-                    isCurrent ? tlStyles.numberCurrent : tlStyles.numberFuture,
+                    isCurrent
+                      ? [tlStyles.numberCurrent, { color: colors.textPrimary }]
+                      : [tlStyles.numberFuture, { color: colors.textTertiary }],
                   ]}
                 >
                   {i + 1}
@@ -128,7 +125,6 @@ const tlStyles = StyleSheet.create({
   line: {
     width: 20,
     height: 1.5,
-    backgroundColor: Colors.border,
     marginHorizontal: 2,
   },
   iconWrap: {
@@ -147,11 +143,9 @@ const tlStyles = StyleSheet.create({
   },
   numberCurrent: {
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
   },
   numberFuture: {
     fontWeight: FontWeight.regular,
-    color: Colors.textTertiary,
   },
 });
 
@@ -160,6 +154,7 @@ const tlStyles = StyleSheet.create({
 export default function QuizScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
 
   const [session, setSession] = useState<DailySession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,7 +162,6 @@ export default function QuizScreen() {
   const [selectedOriginalIndex, setSelectedOriginalIndex] = useState<
     number | null
   >(null);
-  // Track per-question results so dots can show correct/incorrect for past questions
   const [results, setResults] = useState<(QuestionResult | null)[]>([]);
 
   // Next button transition force delay state
@@ -178,7 +172,7 @@ export default function QuizScreen() {
     const fetchSession = async () => {
       const s = await loadSession();
       if (!s) {
-        router.replace("/");
+        router.dismiss();
         return;
       }
       const loadedResults =
@@ -204,7 +198,6 @@ export default function QuizScreen() {
   const questionId = questionIds[currentIndex];
   const question = seedQuestions.find((q) => q.id === questionId);
 
-  // Must be called unconditionally before any early returns
   const shuffledChoices = useMemo(() => {
     if (!question) return [];
     return question.choices
@@ -222,9 +215,11 @@ export default function QuizScreen() {
   if (loading || !session) {
     return (
       <ScreenContainer
+        edges={["top", "left", "right"]}
         style={{ justifyContent: "center", alignItems: "center" }}
       >
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
   }
@@ -232,10 +227,12 @@ export default function QuizScreen() {
   if (!question) {
     return (
       <ScreenContainer
+        edges={["top", "left", "right"]}
         style={{ justifyContent: "center", alignItems: "center" }}
       >
-        <Text>Error: Question not found</Text>
-        <Button title="Go Home" onPress={() => router.replace("/")} />
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+        <Text style={{ color: colors.textPrimary }}>Error: Question not found</Text>
+        <Button title="Go Home" onPress={() => router.dismiss()} />
       </ScreenContainer>
     );
   }
@@ -259,7 +256,6 @@ export default function QuizScreen() {
     const correct = originalIndex === question.correctIndex;
     const result: QuestionResult = correct ? "correct" : "incorrect";
 
-    // Haptic feedback — success ping for correct, error thud for wrong
     if (correct) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -268,12 +264,10 @@ export default function QuizScreen() {
 
     setSelectedOriginalIndex(originalIndex);
 
-    // Record result in the timeline array
     const nextResults = [...results];
     nextResults[currentIndex] = result;
     setResults(nextResults);
 
-    // Update session score & persist stats
     const updatedSession = {
       ...session,
       status: "in-progress" as const,
@@ -284,19 +278,17 @@ export default function QuizScreen() {
     setSession(updatedSession);
     await saveSession(updatedSession);
 
-    // In retry mode, don't persist stats — answers are practice-only
     if (!isRetryMode) {
       await updateQuestionStats(question.id, correct);
     }
 
     setPhase("feedback");
 
-    // Force reflection delay
     setIsNextReady(false);
     progressAnim.setValue(0);
     Animated.timing(progressAnim, {
       toValue: 1,
-      duration: 3000, // 3 seconds delay
+      duration: 3000,
       useNativeDriver: false,
     }).start(() => {
       setIsNextReady(true);
@@ -308,13 +300,13 @@ export default function QuizScreen() {
 
     if (isLastQuestion) {
       if (isRetryMode) {
-        // Restore the original session and attach retry results
+        // Restore the original session with retry results attached
         const restoredSession: DailySession = {
           ...finalSession,
           retryMode: false,
           retryResults: results,
+          retryQuestionIds: finalSession.questionIds,
           status: "completed",
-          // Restore original data
           questionIds:
             finalSession.originalQuestionIds ?? finalSession.questionIds,
           results: finalSession.originalResults ?? finalSession.results,
@@ -322,7 +314,8 @@ export default function QuizScreen() {
           currentIndex: 0,
         };
         await saveSession(restoredSession);
-        router.replace("/session-summary");
+        // Pop back to session-summary (which is below us in the stack)
+        router.dismiss();
       } else {
         await completeSession(finalSession);
         router.replace("/session-summary");
@@ -331,38 +324,67 @@ export default function QuizScreen() {
       finalSession.currentIndex += 1;
       await saveSession(finalSession);
       setSession(finalSession);
-      // Reset for next question
       setSelectedOriginalIndex(null);
       setPhase("answering");
     }
   };
 
+  const handleExit = async () => {
+    // If we're in retry mode, restore the original session before leaving
+    // so the home screen and summary show the correct original score
+    if (session.retryMode) {
+      const restoredSession: DailySession = {
+        ...session,
+        retryMode: false,
+        status: "completed",
+        questionIds:
+          session.originalQuestionIds ?? session.questionIds,
+        results: session.originalResults ?? session.results,
+        score: session.originalScore ?? session.score,
+        currentIndex: 0,
+      };
+      await saveSession(restoredSession);
+    }
+    router.dismiss();
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <ScreenContainer edges={["left", "right"]} style={styles.outerContainer}>
-      <Stack.Screen
-        options={{
-          headerBackTitle: "Home",
-          title: isRetryMode ? "Practice Round" : "Daily Session",
-        }}
-      />
+    <ScreenContainer edges={["top", "left", "right"]} style={styles.outerContainer}>
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+
+      {/* ── Custom header bar ── */}
+      <View style={styles.customHeader}>
+        <View style={styles.customHeaderSpacer} />
+        <Text style={[styles.customHeaderTitle, { color: colors.textPrimary }]}>
+          {isRetryMode ? "Practice Round" : "Daily Session"}
+        </Text>
+        <TouchableOpacity
+          onPress={handleExit}
+          style={styles.closeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <X size={20} color={colors.textTertiary} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
 
       {/* ── Practice mode banner ── */}
       {isRetryMode && (
-        <View style={styles.practiceBanner}>
-          <Text style={styles.practiceBannerText}>
+        <View style={[styles.practiceBanner, { backgroundColor: colors.warning + "18", borderBottomColor: colors.warning + "40" }]}>
+          <Text style={[styles.practiceBannerText, { color: colors.warning }]}>
             Practice Mode — answers won't be saved
           </Text>
         </View>
       )}
 
       {/* ── Fixed progress timeline header ── */}
-      <View style={styles.timelineHeader}>
+      <View style={[styles.timelineHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <ProgressTimeline
           total={questionIds.length}
           currentIndex={currentIndex}
           results={results}
+          colors={colors}
         />
       </View>
 
@@ -375,7 +397,6 @@ export default function QuizScreen() {
       >
         {/* ── Badges Row ── */}
         <View style={styles.badgesRow}>
-          {/* ── Domain badge ── */}
           <View
             style={[
               styles.domainBadge,
@@ -391,45 +412,44 @@ export default function QuizScreen() {
             </Text>
           </View>
 
-          {/* ── Type badge ── */}
           {session?.questionTypes?.[question.id] && (
             <View
               style={[
                 styles.typeBadge,
                 session.questionTypes[question.id] === "new" && {
-                  backgroundColor: Colors.primary + "18",
-                  borderColor: Colors.primary + "30",
+                  backgroundColor: colors.primary + "18",
+                  borderColor: colors.primary + "30",
                 },
                 session.questionTypes[question.id] === "missed" && {
-                  backgroundColor: Colors.incorrect + "18",
-                  borderColor: Colors.incorrect + "30",
+                  backgroundColor: colors.incorrect + "18",
+                  borderColor: colors.incorrect + "30",
                 },
                 session.questionTypes[question.id] === "resurfaced" && {
-                  backgroundColor: Colors.correct + "18",
-                  borderColor: Colors.correct + "30",
+                  backgroundColor: colors.correct + "18",
+                  borderColor: colors.correct + "30",
                 },
               ]}
             >
               {session.questionTypes[question.id] === "new" && (
-                <Sparkles size={14} color={Colors.primary} strokeWidth={2} />
+                <Sparkles size={14} color={colors.primary} strokeWidth={2} />
               )}
               {session.questionTypes[question.id] === "missed" && (
-                <Target size={14} color={Colors.incorrect} strokeWidth={2} />
+                <Target size={14} color={colors.incorrect} strokeWidth={2} />
               )}
               {session.questionTypes[question.id] === "resurfaced" && (
-                <RotateCcw size={14} color={Colors.correct} strokeWidth={2} />
+                <RotateCcw size={14} color={colors.correct} strokeWidth={2} />
               )}
               <Text
                 style={[
                   styles.typeBadgeText,
                   session.questionTypes[question.id] === "new" && {
-                    color: Colors.primary,
+                    color: colors.primary,
                   },
                   session.questionTypes[question.id] === "missed" && {
-                    color: Colors.incorrect,
+                    color: colors.incorrect,
                   },
                   session.questionTypes[question.id] === "resurfaced" && {
-                    color: Colors.correct,
+                    color: colors.correct,
                   },
                 ]}
               >
@@ -444,7 +464,7 @@ export default function QuizScreen() {
         </View>
 
         {/* ── Question prompt ── */}
-        <Text style={styles.title}>{question.prompt}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{question.prompt}</Text>
 
         {/* ══════════════════════════════════════════════════════════════════════
             PHASE: answering — show the shuffled choices
@@ -456,7 +476,7 @@ export default function QuizScreen() {
                 key={index}
                 style={[
                   styles.choiceButton,
-                  { borderColor: domainTheme.accent + "30" },
+                  { backgroundColor: colors.surface, borderColor: domainTheme.accent + "30" },
                 ]}
                 activeOpacity={0.7}
                 onPress={() => handleChoice(choiceObj.originalIndex)}
@@ -477,7 +497,7 @@ export default function QuizScreen() {
                       {String.fromCharCode(65 + index)}
                     </Text>
                   </View>
-                  <Text style={styles.choiceText}>{choiceObj.text}</Text>
+                  <Text style={[styles.choiceText, { color: colors.textPrimary }]}>{choiceObj.text}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -489,66 +509,63 @@ export default function QuizScreen() {
             ══════════════════════════════════════════════════════════════════════ */}
         {phase === "feedback" && (
           <View style={styles.feedbackContainer}>
-            {/* Result icon + label */}
             <View
               style={[
                 styles.resultIconWrap,
                 {
                   backgroundColor: isCorrect
-                    ? Colors.correct + "18"
-                    : Colors.incorrect + "18",
+                    ? colors.correct + "18"
+                    : colors.incorrect + "18",
                 },
               ]}
             >
               {isCorrect ? (
-                <Check size={28} color={Colors.correct} strokeWidth={2.5} />
+                <Check size={28} color={colors.correct} strokeWidth={2.5} />
               ) : (
-                <X size={28} color={Colors.incorrect} strokeWidth={2.5} />
+                <X size={28} color={colors.incorrect} strokeWidth={2.5} />
               )}
             </View>
 
             <Text
               style={[
                 styles.resultLabel,
-                { color: isCorrect ? Colors.correct : Colors.incorrect },
+                { color: isCorrect ? colors.correct : colors.incorrect },
               ]}
             >
               {isCorrect ? "Correct!" : "Incorrect"}
             </Text>
 
-            {/* Correct answer — always shown */}
             <View
               style={[
                 styles.correctAnswerCard,
-                isCorrect && {
-                  backgroundColor: Colors.correct + "12",
-                  borderLeftColor: Colors.correct,
+                {
+                  backgroundColor: isCorrect ? colors.correct + "12" : colors.incorrect + "12",
+                  borderLeftColor: isCorrect ? colors.correct : colors.incorrect,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.correctAnswerHint,
-                  isCorrect && { color: Colors.correct },
+                  { color: isCorrect ? colors.correct : colors.incorrect },
                 ]}
               >
                 {isCorrect ? "Your answer" : "Correct answer"}
               </Text>
-              <Text style={styles.correctAnswerText}>
+              <Text style={[styles.correctAnswerText, { color: colors.textPrimary }]}>
                 {question.choices[question.correctIndex]}
               </Text>
             </View>
 
-            {/* Explanation — always visible */}
-            <View style={styles.explanationBox}>
-              <Text style={styles.explanationText}>{question.explanation}</Text>
+            <View style={[styles.explanationBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.explanationText, { color: colors.textSecondary }]}>{question.explanation}</Text>
               {question.learnMoreQueries &&
               question.learnMoreQueries.length > 0 ? (
                 <View style={styles.queriesContainer}>
                   {question.learnMoreQueries.map((query, index) => (
                     <TouchableOpacity
                       key={index}
-                      style={styles.searchLink}
+                      style={[styles.searchLink, { backgroundColor: colors.primary + "15" }]}
                       activeOpacity={0.7}
                       onPress={() => {
                         Linking.openURL(
@@ -558,16 +575,16 @@ export default function QuizScreen() {
                     >
                       <Search
                         size={14}
-                        color={Colors.primary}
+                        color={colors.primary}
                         strokeWidth={2.5}
                       />
-                      <Text style={styles.searchLinkText}>{query}</Text>
+                      <Text style={[styles.searchLinkText, { color: colors.primary }]}>{query}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.searchLink}
+                  style={[styles.searchLink, { backgroundColor: colors.primary + "15" }]}
                   activeOpacity={0.7}
                   onPress={() => {
                     const searchTerm =
@@ -579,8 +596,8 @@ export default function QuizScreen() {
                     );
                   }}
                 >
-                  <Search size={14} color={Colors.primary} strokeWidth={2.5} />
-                  <Text style={styles.searchLinkText}>
+                  <Search size={14} color={colors.primary} strokeWidth={2.5} />
+                  <Text style={[styles.searchLinkText, { color: colors.primary }]}>
                     Learn more about{" "}
                     {question.tags?.[0]?.replace(/-/g, " ") ||
                       question.subdomain}
@@ -597,14 +614,18 @@ export default function QuizScreen() {
         <View
           style={[
             styles.bottomBar,
-            { paddingBottom: Math.max(insets.bottom, Spacing.md) },
+            {
+              paddingBottom: Math.max(insets.bottom, Spacing.md),
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+            },
           ]}
         >
           <TouchableOpacity
             style={[
               styles.nextButton,
               {
-                backgroundColor: isCorrect ? Colors.correct : Colors.primary,
+                backgroundColor: isCorrect ? colors.correct : colors.primary,
                 opacity: isNextReady ? 1 : 0.8,
                 overflow: "hidden",
               },
@@ -628,7 +649,7 @@ export default function QuizScreen() {
                 }}
               />
             )}
-            <Text style={styles.nextButtonText}>
+            <Text style={[styles.nextButtonText, { color: colors.textInverse }]}>
               {isLastQuestion ? "Finish Session" : "Next Question"}
             </Text>
           </TouchableOpacity>
@@ -645,13 +666,30 @@ const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
   },
+  closeButton: {
+    padding: Spacing.xs,
+  },
+  customHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.screen,
+    paddingVertical: Spacing.md,
+  },
+  customHeaderSpacer: {
+    width: 28, // matches the X button size so title stays centered
+  },
+  customHeaderTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    textAlign: "center",
+    flex: 1,
+  },
   timelineHeader: {
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.sm,
     paddingHorizontal: Spacing.screen,
-    backgroundColor: Colors.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
   },
   scrollView: {
     flex: 1,
@@ -705,7 +743,6 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     marginBottom: Spacing.lg,
     textAlign: "center",
-    color: Colors.textPrimary,
     lineHeight: 28,
   },
 
@@ -715,7 +752,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   choiceButton: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 1,
     ...Shadow.card,
@@ -740,7 +776,6 @@ const styles = StyleSheet.create({
   choiceText: {
     flex: 1,
     fontSize: FontSize.base,
-    color: Colors.textPrimary,
   },
 
   /* ── Feedback phase ── */
@@ -763,16 +798,13 @@ const styles = StyleSheet.create({
   },
   correctAnswerCard: {
     width: "100%",
-    backgroundColor: Colors.incorrect + "12",
     borderRadius: Radius.md,
     padding: Spacing.md,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.incorrect,
   },
   correctAnswerHint: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    color: Colors.incorrect,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: Spacing.xs,
@@ -780,23 +812,19 @@ const styles = StyleSheet.create({
   correctAnswerText: {
     fontSize: FontSize.base,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
   },
 
   /* ── Explanation Box ── */
   explanationBox: {
     width: "100%",
-    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     gap: Spacing.md,
     marginTop: Spacing.xs,
   },
   explanationText: {
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
     lineHeight: LineHeight.relaxed,
   },
   queriesContainer: {
@@ -807,7 +835,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: Colors.primary + "15",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
@@ -817,16 +844,13 @@ const styles = StyleSheet.create({
   searchLinkText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.primary,
   },
 
   /* ── Fixed bottom bar ── */
   bottomBar: {
     paddingHorizontal: Spacing.screen,
     paddingTop: Spacing.sm,
-    backgroundColor: Colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
   },
   nextButton: {
     width: "100%",
@@ -837,22 +861,18 @@ const styles = StyleSheet.create({
   nextButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textInverse,
   },
 
   /* ── Practice mode banner ── */
   practiceBanner: {
-    backgroundColor: Colors.warning + "18",
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.screen,
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.warning + "40",
   },
   practiceBannerText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    color: Colors.warning,
     letterSpacing: 0.3,
   },
 });

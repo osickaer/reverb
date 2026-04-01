@@ -4,36 +4,83 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-import { Colors } from '@/constants/theme';
+import { AppThemeProvider, useAppTheme } from '@/contexts/theme-context';
+import { getColors } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+/** Inner layout that can read the theme context */
+function RootLayoutInner() {
+  const { colorScheme, colors } = useAppTheme();
+
+  // Build a custom navigation theme so header/background match our palette
+  const navTheme = colorScheme === 'dark'
+    ? {
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          background: colors.background,
+          card: colors.surface,
+          text: colors.textPrimary,
+          border: colors.border,
+          primary: colors.primary,
+        },
+      }
+    : {
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          background: colors.background,
+          card: colors.background,
+          text: colors.textPrimary,
+          border: colors.border,
+          primary: colors.primary,
+        },
+      };
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: Colors.background },
-            headerTintColor: Colors.textPrimary,
-            headerShadowVisible: false,
-            headerBackTitle: "Back",
+    <ThemeProvider value={navTheme}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+          headerBackTitle: "Back",
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'default',
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="quiz"
+          options={{
+            headerShown: false,
+            animation: 'none',
+            gestureEnabled: false,
           }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-        {/* 
-          "dark" = black icons (clock, battery, wifi) → correct for light backgrounds.
-          Change to "light" for dark-background screens, or "auto" to follow system theme.
-        */}
-        <StatusBar style="dark" />
-      </ThemeProvider>
+        />
+        <Stack.Screen
+          name="session-summary"
+          options={{
+            headerShown: false,
+            animation: 'none',
+            gestureEnabled: false,
+          }}
+        />
+      </Stack>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <AppThemeProvider>
+        <RootLayoutInner />
+      </AppThemeProvider>
     </SafeAreaProvider>
   );
 }

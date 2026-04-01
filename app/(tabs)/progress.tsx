@@ -1,4 +1,5 @@
 import { getThemeForDomain } from "@/constants/domain-themes";
+import { useThemeColors } from "@/contexts/theme-context";
 import { useFocusEffect } from "expo-router";
 import { ChevronDown, ChevronRight } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
@@ -17,8 +18,6 @@ import {
   listAllStorage,
 } from "../../utils/storage-debug";
 import {
-  Colors,
-  CommonStyles,
   FontSize,
   FontWeight,
   LineHeight,
@@ -104,12 +103,14 @@ function accuracy(correct: number, total: number): number {
 function AccuracyBar({
   pct,
   accent,
+  colors,
 }: {
   pct: number;
   accent: string;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   return (
-    <View style={barStyles.track}>
+    <View style={[barStyles.track, { backgroundColor: colors.divider }]}>
       <View
         style={[barStyles.fill, { width: `${pct}%` as any, backgroundColor: accent }]}
       />
@@ -121,7 +122,6 @@ const barStyles = StyleSheet.create({
   track: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.divider,
     marginTop: Spacing.xs,
     overflow: "hidden",
   },
@@ -131,16 +131,16 @@ const barStyles = StyleSheet.create({
   },
 });
 
-function SubdomainRow({ sub, accent }: { sub: SubdomainStat; accent: string }) {
+function SubdomainRow({ sub, accent, colors }: { sub: SubdomainStat; accent: string; colors: ReturnType<typeof useThemeColors> }) {
   const pct = accuracy(sub.correct, sub.total);
   return (
-    <View style={subStyle.row}>
+    <View style={[subStyle.row, { borderTopColor: colors.divider }]}>
       <View style={subStyle.header}>
-        <Text style={subStyle.name}>{sub.subdomain}</Text>
+        <Text style={[subStyle.name, { color: colors.textSecondary }]}>{sub.subdomain}</Text>
         <Text style={[subStyle.pct, { color: accent }]}>{pct}%</Text>
       </View>
-      <AccuracyBar pct={pct} accent={accent} />
-      <Text style={subStyle.count}>
+      <AccuracyBar pct={pct} accent={accent} colors={colors} />
+      <Text style={[subStyle.count, { color: colors.textTertiary }]}>
         {sub.correct} / {sub.total} correct
       </Text>
     </View>
@@ -151,7 +151,6 @@ const subStyle = StyleSheet.create({
   row: {
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.divider,
   },
   header: {
     flexDirection: "row",
@@ -162,7 +161,6 @@ const subStyle = StyleSheet.create({
   name: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
-    color: Colors.textSecondary,
   },
   pct: {
     fontSize: FontSize.sm,
@@ -170,37 +168,33 @@ const subStyle = StyleSheet.create({
   },
   count: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
     marginTop: Spacing.xs,
   },
 });
 
-function DomainCard({ stat }: { stat: DomainStat }) {
+function DomainCard({ stat, colors }: { stat: DomainStat; colors: ReturnType<typeof useThemeColors> }) {
   const [expanded, setExpanded] = useState(false);
   const theme = getThemeForDomain(stat.domain);
   const DomainIcon = theme.icon;
   const pct = accuracy(stat.correct, stat.total);
 
   return (
-    <View style={[cardStyle.card, { borderLeftColor: theme.accent }]}>
-      {/* ── Header row (always visible) ── */}
+    <View style={[cardStyle.card, { backgroundColor: colors.surface, borderLeftColor: theme.accent }]}>
       <TouchableOpacity
         style={cardStyle.header}
         activeOpacity={0.7}
         onPress={() => setExpanded((v) => !v)}
       >
-        {/* Icon + domain name */}
         <View style={[cardStyle.iconWrap, { backgroundColor: theme.tint }]}>
           <DomainIcon size={18} color={theme.accent} strokeWidth={2} />
         </View>
         <View style={cardStyle.titleBlock}>
-          <Text style={cardStyle.domainName}>{stat.domain}</Text>
-          <Text style={cardStyle.subtext}>
+          <Text style={[cardStyle.domainName, { color: colors.textPrimary }]}>{stat.domain}</Text>
+          <Text style={[cardStyle.subtext, { color: colors.textTertiary }]}>
             {stat.total} {stat.total === 1 ? "question" : "questions"} tracked
           </Text>
         </View>
 
-        {/* Accuracy badge + chevron */}
         <View style={cardStyle.rightCol}>
           <View
             style={[cardStyle.badge, { backgroundColor: theme.tint }]}
@@ -210,17 +204,15 @@ function DomainCard({ stat }: { stat: DomainStat }) {
             </Text>
           </View>
           {expanded ? (
-            <ChevronDown size={16} color={Colors.textTertiary} />
+            <ChevronDown size={16} color={colors.textTertiary} />
           ) : (
-            <ChevronRight size={16} color={Colors.textTertiary} />
+            <ChevronRight size={16} color={colors.textTertiary} />
           )}
         </View>
       </TouchableOpacity>
 
-      {/* Overall accuracy bar */}
-      <AccuracyBar pct={pct} accent={theme.accent} />
+      <AccuracyBar pct={pct} accent={theme.accent} colors={colors} />
 
-      {/* ── Expanded subdomain list ── */}
       {expanded && (
         <View style={cardStyle.subdomains}>
           {stat.subdomains.map((sub) => (
@@ -228,6 +220,7 @@ function DomainCard({ stat }: { stat: DomainStat }) {
               key={sub.subdomain}
               sub={sub}
               accent={theme.accent}
+              colors={colors}
             />
           ))}
         </View>
@@ -238,7 +231,6 @@ function DomainCard({ stat }: { stat: DomainStat }) {
 
 const cardStyle = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderLeftWidth: 3,
     padding: Spacing.base,
@@ -264,11 +256,9 @@ const cardStyle = StyleSheet.create({
   domainName: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
   },
   subtext: {
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
     marginTop: 2,
   },
   rightCol: {
@@ -293,6 +283,7 @@ const cardStyle = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProgressTabScreen() {
+  const colors = useThemeColors();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -317,7 +308,7 @@ export default function ProgressTabScreen() {
   if (loading || !stats) {
     return (
       <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
   }
@@ -335,37 +326,37 @@ export default function ProgressTabScreen() {
     <ScreenContainer scrollable style={styles.contentContainer}>
       {/* ── Top stat cards ── */}
       <View style={styles.metricsRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{totalSessions}</Text>
-          <Text style={styles.metricLabel}>Sessions</Text>
+        <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>{totalSessions}</Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Sessions</Text>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{overallAcc}%</Text>
-          <Text style={styles.metricLabel}>Accuracy</Text>
+        <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>{overallAcc}%</Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Accuracy</Text>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{totalUnique}</Text>
-          <Text style={styles.metricLabel}>Questions</Text>
+        <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>{totalUnique}</Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Questions</Text>
         </View>
       </View>
 
       {/* ── Domain mastery ── */}
-      <Text style={styles.sectionTitle}>Domain Mastery</Text>
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Domain Mastery</Text>
 
       {domainStats.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
+        <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
             Complete a session to see your domain mastery.
           </Text>
         </View>
       ) : (
-        domainStats.map((d) => <DomainCard key={d.domain} stat={d} />)
+        domainStats.map((d) => <DomainCard key={d.domain} stat={d} colors={colors} />)
       )}
 
       {/* ── Weak spots summary ── */}
-      <View style={styles.weakCard}>
-        <Text style={styles.weakTitle}>⚡ Weak Spots</Text>
-        <Text style={styles.weakBody}>
+      <View style={[styles.weakCard, { backgroundColor: colors.surface, borderLeftColor: colors.warning }]}>
+        <Text style={[styles.weakTitle, { color: colors.textPrimary }]}>⚡ Weak Spots</Text>
+        <Text style={[styles.weakBody, { color: colors.textSecondary }]}>
           {missedCount > 0
             ? `You have ${missedCount} identified weak-spot ${missedCount === 1 ? "question" : "questions"}. Reverb automatically resurfaces these in future sessions to build retention.`
             : "No weak spots identified yet — keep quizzing!"}
@@ -373,24 +364,24 @@ export default function ProgressTabScreen() {
       </View>
 
       {/* ── Debug tools ── */}
-      <View style={styles.debugSection}>
-        <Text style={styles.debugTitle}>🛠 Debug Tools</Text>
+      <View style={[styles.debugSection, { borderTopColor: colors.border }]}>
+        <Text style={[styles.debugTitle, { color: colors.textTertiary }]}>🛠 Debug Tools</Text>
         <TouchableOpacity
-          style={styles.debugButton}
+          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           activeOpacity={0.7}
           onPress={() => debugReverbStorage()}
         >
-          <Text style={styles.debugButtonText}>Dump Session & Stats</Text>
+          <Text style={[styles.debugButtonText, { color: colors.textSecondary }]}>Dump Session & Stats</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.debugButton}
+          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           activeOpacity={0.7}
           onPress={() => listAllStorage()}
         >
-          <Text style={styles.debugButtonText}>List All Storage</Text>
+          <Text style={[styles.debugButtonText, { color: colors.textSecondary }]}>List All Storage</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.debugButton, styles.debugButtonDanger]}
+          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.incorrect + "40" }]}
           activeOpacity={0.7}
           onPress={() =>
             Alert.alert(
@@ -407,7 +398,7 @@ export default function ProgressTabScreen() {
             )
           }
         >
-          <Text style={[styles.debugButtonText, styles.debugButtonDangerText]}>
+          <Text style={[styles.debugButtonText, { color: colors.incorrect }]}>
             Clear Storage
           </Text>
         </TouchableOpacity>
@@ -430,81 +421,73 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxl,
   },
   metricCard: {
-    ...CommonStyles.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     flex: 1,
     marginHorizontal: Spacing.xs,
     alignItems: "center",
+    ...Shadow.card,
   },
   metricValue: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.heavy,
-    color: Colors.primary,
     marginBottom: Spacing.xs,
   },
   metricLabel: {
-    ...CommonStyles.labelText,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    textTransform: "uppercase",
   },
   sectionTitle: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
   emptyCard: {
-    ...CommonStyles.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: Spacing.xl,
+    ...Shadow.card,
   },
   emptyText: {
-    color: Colors.textTertiary,
     fontStyle: "italic",
     lineHeight: LineHeight.normal,
   },
   weakCard: {
-    ...CommonStyles.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginTop: Spacing.sm,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.warning,
+    ...Shadow.card,
   },
   weakTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   weakBody: {
-    ...CommonStyles.bodyText,
+    fontSize: FontSize.base,
     lineHeight: LineHeight.normal,
   },
   debugSection: {
     marginTop: Spacing.xxl,
     paddingTop: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
     gap: Spacing.sm,
   },
   debugTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: Colors.textTertiary,
     marginBottom: Spacing.xs,
   },
   debugButton: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   debugButtonText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
-    color: Colors.textSecondary,
-  },
-  debugButtonDanger: {
-    borderColor: Colors.incorrect + "40",
-  },
-  debugButtonDangerText: {
-    color: Colors.incorrect,
   },
 });

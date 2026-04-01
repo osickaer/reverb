@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { Colors, FontSize, FontWeight } from "../constants/theme";
+import { FontSize, FontWeight } from "../constants/theme";
+import { useThemeColors } from "@/contexts/theme-context";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -16,6 +17,7 @@ export function ScoreRing({
   size?: number;
   strokeWidth?: number;
 }) {
+  const colors = useThemeColors();
   const percentage = total > 0 ? score / total : 0;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,15 +41,14 @@ export function ScoreRing({
 
   const ringColor =
     percentage >= 0.8
-      ? Colors.correct
+      ? colors.correct
       : percentage >= 0.5
-        ? Colors.warning
-        : Colors.incorrect;
+        ? colors.warning
+        : colors.incorrect;
 
   const cx = size / 2;
   const cy = size / 2;
 
-  // Scale font size relative to ring size
   const labelSize = size <= 100 ? FontSize.lg : FontSize.xxl;
 
   return (
@@ -57,7 +58,7 @@ export function ScoreRing({
           cx={cx}
           cy={cy}
           r={radius}
-          stroke={Colors.border + "50"}
+          stroke={colors.border + "50"}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -75,7 +76,7 @@ export function ScoreRing({
           origin={`${cx}, ${cy}`}
         />
       </Svg>
-      <Text style={[styles.scoreNumber, { fontSize: labelSize }]}>
+      <Text style={[styles.scoreNumber, { fontSize: labelSize, color: colors.textPrimary }]}>
         {score}/{total}
       </Text>
     </View>
@@ -85,6 +86,5 @@ export function ScoreRing({
 const styles = StyleSheet.create({
   scoreNumber: {
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
   },
 });
