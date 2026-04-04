@@ -29,8 +29,31 @@ export interface UserStats {
 }
 
 export const getTodayString = () => {
-  const date = new Date("2026-04-03");
+  const date = new Date();
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+};
+
+export const getDateStringForOffset = (daysAgo: number) => {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+};
+
+export const calculateCurrentStreak = (
+  history: UserStats["history"],
+): number => {
+  const todayKey = getDateStringForOffset(0);
+  const startOffset = history[todayKey] ? 0 : 1;
+  let streak = 0;
+
+  for (let offset = startOffset; offset < 366; offset++) {
+    const dateKey = getDateStringForOffset(offset);
+    if (!history[dateKey]) break;
+    streak += 1;
+  }
+
+  return streak;
 };
 
 export const loadSession = async (): Promise<DailySession | null> => {

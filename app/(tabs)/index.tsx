@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import {
+  calculateCurrentStreak,
   DailySession,
   UserStats,
   initDailySessionIfNeeded,
@@ -55,29 +56,6 @@ function getTagline(score: number, total: number): string {
   if (pct >= 0.6) return "Solid work — keep building!";
   if (pct >= 0.4) return "Getting sharper every day.";
   return "Every session makes you stronger.";
-}
-
-/** Returns a YYYY-MM-DD string for a date offset by `daysAgo` from today (real clock). */
-function offsetDateString(daysAgo: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
-}
-
-/** Calculate the current streak from a history record (keyed by YYYY-MM-DD). */
-function calcStreak(history: Record<string, unknown>, todayCompleted: boolean): number {
-  let streak = 0;
-  for (let i = 0; i < 365; i++) {
-    const dateStr = offsetDateString(i);
-    if (i === 0) {
-      if (todayCompleted) streak += 1;
-      else break;
-    } else {
-      if (history[dateStr]) streak += 1;
-      else break;
-    }
-  }
-  return streak;
 }
 
 // ─── Session preview labels ─────────────────────────────────────────────────
@@ -307,11 +285,7 @@ export default function HomeScreen() {
   // Derived stats
   const derivedStats = useMemo(() => {
     if (!stats || !session) return null;
-    const totalSessions = Object.keys(stats.history || {}).length;
-    const correctCount = (stats.correctQuestions || []).length;
     const missedCount = (stats.missedQuestions || []).length;
-    const totalUnique = correctCount + missedCount;
-    const overallAcc = totalUnique > 0 ? Math.round((correctCount / totalUnique) * 100) : 0;
 
     // Build domain stats
     const domainMap: Record<string, { correct: number; total: number }> = {};
@@ -331,11 +305,9 @@ export default function HomeScreen() {
       .map(([domain, d]) => ({ domain, ...d }))
       .sort((a, b) => b.total - a.total);
 
-    // Streak history
-    const todayCompleted = session?.status === "completed";
-    const streak = calcStreak(stats.history || {}, todayCompleted);
+    const streak = calculateCurrentStreak(stats.history || {});
 
-    return { totalSessions, overallAcc, totalUnique, missedCount, domains, streak };
+    return { missedCount, domains, streak };
   }, [stats, session]);
 
   if (loading || !session || !stats || !derivedStats) {
@@ -346,7 +318,7 @@ export default function HomeScreen() {
     );
   }
 
-  const { totalSessions, overallAcc, totalUnique, missedCount, domains, streak } = derivedStats;
+  const { missedCount, domains, streak } = derivedStats;
   const isCompleted = session.status === "completed";
   const isInProgress = session.status === "in-progress";
 
@@ -372,7 +344,7 @@ export default function HomeScreen() {
         </View>
 
         {streak === 0 && (
-          <Text style={[styles.streakHint, { color: colors.textTertiary }]}>Complete today's session to start your streak!</Text>
+          <Text style={[styles.streakHint, { color: colors.textTertiary }]}>Complete today&apos;s session to start your streak!</Text>
         )}
       </View>
 
@@ -385,7 +357,7 @@ export default function HomeScreen() {
         {/* ── Available ── */}
         {session.status === "available" && (
           <View style={styles.todayInner}>
-            <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Today's 5</Text>
+            <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Today&apos;s 5</Text>
             <Text style={[styles.todayDesc, { color: colors.textSecondary }]}>
               Ready to stretch your knowledge? Your daily session is waiting.
             </Text>
@@ -406,7 +378,7 @@ export default function HomeScreen() {
           <View style={styles.todayInner}>
             <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Session In Progress</Text>
             <Text style={[styles.todayDesc, { color: colors.textSecondary }]}>
-              You're on question {Math.min(session.currentIndex + 1, session.questionIds.length)} of{" "}
+              You&apos;re on question {Math.min(session.currentIndex + 1, session.questionIds.length)} of{" "}
               {session.questionIds.length}. Pick up where you left off.
             </Text>
 

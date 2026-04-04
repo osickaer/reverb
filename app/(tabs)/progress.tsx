@@ -2,7 +2,7 @@ import { getThemeForDomain } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useFocusEffect } from "expo-router";
 import { ChevronDown, ChevronRight } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +25,12 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/theme";
-import { loadStats, UserStats } from "../../utils/storage";
+import {
+  calculateCurrentStreak,
+  getDateStringForOffset,
+  loadStats,
+  UserStats,
+} from "../../utils/storage";
 import { ScreenContainer } from "@/components/screen-container";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,6 +46,16 @@ interface DomainStat {
   correct: number;
   total: number;
   subdomains: SubdomainStat[];
+}
+
+interface StreakChartDay {
+  date: string;
+  score: number;
+  total: number;
+  label: string;
+  isToday: boolean;
+  completed: boolean;
+  pct: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -98,6 +113,43 @@ function accuracy(correct: number, total: number): number {
   return total > 0 ? Math.round((correct / total) * 100) : 0;
 }
 
+function offsetDate(daysAgo: number): Date {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  return date;
+}
+
+function buildRecentChartData(
+  history: UserStats["history"],
+  days: number = 14,
+): StreakChartDay[] {
+  return Array.from({ length: days }, (_, index) => {
+    const daysAgo = days - index - 1;
+    const date = offsetDate(daysAgo);
+    const key = getDateStringForOffset(daysAgo);
+    const dayStat = history[key];
+    const completed = Boolean(dayStat);
+    const score = dayStat?.score ?? 0;
+    const total = dayStat?.total ?? 5;
+
+    return {
+      date: key,
+      score,
+      total,
+      label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 1),
+      isToday: daysAgo === 0,
+      completed,
+      pct: completed ? Math.round((score / total) * 100) : 0,
+    };
+  });
+}
+
+function formatChartDate(dateKey: string): string {
+  const date = new Date(`${dateKey}T12:00:00`);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function AccuracyBar({
@@ -130,6 +182,131 @@ const barStyles = StyleSheet.create({
     borderRadius: 2,
   },
 });
+
+function ProgressStreakChart({
+  history,
+  colors,
+}: {
+  history: UserStats["history"];
+  colors: ReturnType<typeof useThemeColors>;
+}) {
+  const chartData = useMemo(() => buildRecentChartData(history), [history]);
+  const streak = useMemo(() => calculateCurrentStreak(history), [history]);
+  const completedDays = chartData.filter((day) => day.completed);
+  const lastCompletedDay = completedDays[completedDays.length - 1];
+  const fallbackDay = chartData[chartData.length - 1];
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    lastCompletedDay?.date ?? fallbackDay?.date ?? null,
+  );
+
+  useEffect(() => {
+    setSelectedDate(lastCompletedDay?.date ?? fallbackDay?.date ?? null);
+  }, [lastCompletedDay?.date, fallbackDay?.date]);
+
+  const selectedDay =
+    chartData.find((day) => day.date === selectedDate) ?? fallbackDay;
+
+  if (Object.keys(history).length === 0) {
+    return (
+      <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+          Complete a few daily sessions to see your streak and score trend.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.chartCard, { backgroundColor: colors.surface }]}>
+      <View style={styles.chartHeader}>
+        <View>
+          <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>Daily Streak</Text>
+          <Text style={[styles.chartSubtitle, { color: colors.textTertiary }]}>
+            Last 14 days
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.chartStreakBadge,
+            { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30" },
+          ]}
+        >
+          <Text style={styles.chartStreakFlame}>🔥</Text>
+          <Text style={[styles.chartStreakCount, { color: colors.warning }]}>{streak}</Text>
+        </View>
+      </View>
+
+      <View style={styles.streakStripRow}>
+        {chartData.map((day) => {
+          const isSelected = selectedDay?.date === day.date;
+          const containerColor = day.completed ? colors.correct : "transparent";
+
+          return (
+            <TouchableOpacity
+              key={day.date}
+              style={styles.streakDayButton}
+              activeOpacity={0.8}
+              onPress={() => setSelectedDate(day.date)}
+            >
+              <View
+                style={[
+                  styles.streakDayCell,
+                  {
+                    backgroundColor: containerColor,
+                    borderColor:
+                      isSelected
+                        ? colors.correct
+                        : day.isToday
+                          ? colors.textSecondary
+                          : "transparent",
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.streakDayFill,
+                    {
+                      backgroundColor: colors.correct,
+                      opacity: day.completed ? 1 : 0,
+                    },
+                  ]}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.chartDayLabel,
+                  {
+                    color: isSelected || day.isToday ? colors.textPrimary : colors.textTertiary,
+                  },
+                ]}
+              >
+                {day.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {selectedDay && (
+        <View
+          style={[
+            styles.chartDetail,
+            { borderTopColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.chartDetailDate, { color: colors.textPrimary }]}>
+            {formatChartDate(selectedDay.date)}
+          </Text>
+          <Text style={[styles.chartDetailValue, { color: colors.textSecondary }]}>
+            {selectedDay.completed
+              ? `${selectedDay.score}/${selectedDay.total} correct`
+              : "Missed day"}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 function SubdomainRow({ sub, accent, colors }: { sub: SubdomainStat; accent: string; colors: ReturnType<typeof useThemeColors> }) {
   const pct = accuracy(sub.correct, sub.total);
@@ -341,6 +518,8 @@ export default function ProgressTabScreen() {
       </View>
 
       {/* ── Domain mastery ── */}
+      <ProgressStreakChart history={stats.history || {}} colors={colors} />
+
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Domain Mastery</Text>
 
       {domainStats.length === 0 ? (
@@ -442,6 +621,88 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     marginBottom: Spacing.md,
+  },
+  chartCard: {
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xxl,
+    ...Shadow.card,
+  },
+  chartHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  chartTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  chartSubtitle: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  chartStreakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  chartStreakFlame: {
+    fontSize: FontSize.md,
+  },
+  chartStreakCount: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  streakStripRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: Spacing.xs,
+  },
+  streakDayButton: {
+    flex: 1,
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  streakDayCell: {
+    width: "100%",
+    maxWidth: 22,
+    height: 34,
+    borderRadius: Radius.md,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+  },
+  streakDayFill: {
+    width: "100%",
+    height: "100%",
+    borderRadius: Radius.md,
+  },
+  chartDayLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
+  },
+  chartDetail: {
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+  },
+  chartDetailDate: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  chartDetailValue: {
+    fontSize: FontSize.sm,
+    marginTop: 2,
+    textAlign: "center",
   },
   emptyCard: {
     borderRadius: Radius.lg,
