@@ -1,3 +1,21 @@
+import { ScoreRing } from "@/components/score-ring";
+import { ScreenContainer } from "@/components/screen-container";
+import { useThemeColors } from "@/contexts/theme-context";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Home,
+  Info,
+  Lock,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Target,
+  TrendingUp,
+  X,
+} from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -7,25 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
-import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Home,
-  RefreshCw,
-  RotateCcw,
-  Sparkles,
-  Target,
-  TrendingUp,
-  X,
-  Lock,
-  Info,
-} from "lucide-react-native";
-import { loadSession, DailySession, saveSession } from "../utils/storage";
-import { seedQuestions } from "../data/questions";
 import { getThemeForDomain } from "../constants/domain-themes";
 import {
   FontSize,
@@ -35,9 +35,8 @@ import {
   Shadow,
   Spacing,
 } from "../constants/theme";
-import { useThemeColors } from "@/contexts/theme-context";
-import { ScreenContainer } from "@/components/screen-container";
-import { ScoreRing } from "@/components/score-ring";
+import { seedQuestions } from "../data/questions";
+import { DailySession, loadSession, saveSession } from "../utils/storage";
 
 // ─── Motivational tagline ───────────────────────────────────────────────────────
 
@@ -65,8 +64,16 @@ function TypeBreakdownRow({
 }) {
   const typeConfig = {
     new: { label: "New", Icon: Sparkles, color: colors.primary },
-    missed: { label: "Previously Missed", Icon: Target, color: colors.incorrect },
-    resurfaced: { label: "Knowledge Check", Icon: RotateCcw, color: colors.correct },
+    missed: {
+      label: "Previously Missed",
+      Icon: Target,
+      color: colors.incorrect,
+    },
+    resurfaced: {
+      label: "Knowledge Check",
+      Icon: RotateCcw,
+      color: colors.correct,
+    },
   };
 
   const config = typeConfig[type];
@@ -75,18 +82,29 @@ function TypeBreakdownRow({
 
   return (
     <View style={styles.typeRow}>
-      <View style={[styles.typeIconWrap, { backgroundColor: config.color + "15" }]}>
+      <View
+        style={[styles.typeIconWrap, { backgroundColor: config.color + "15" }]}
+      >
         <IconComponent size={16} color={config.color} strokeWidth={2} />
       </View>
       <View style={styles.typeRowContent}>
-        <Text style={[styles.typeLabel, { color: colors.textPrimary }]}>{config.label}</Text>
+        <Text style={[styles.typeLabel, { color: colors.textPrimary }]}>
+          {config.label}
+        </Text>
         <Text style={[styles.typeDetail, { color: colors.textTertiary }]}>
           {totalCount} question{totalCount !== 1 ? "s" : ""} —{" "}
-          <Text style={{ color: colors.correct, fontWeight: FontWeight.semibold }}>
+          <Text
+            style={{ color: colors.correct, fontWeight: FontWeight.semibold }}
+          >
             {correctCount} correct
           </Text>
           {missedCount > 0 && (
-            <Text style={{ color: colors.incorrect, fontWeight: FontWeight.semibold }}>
+            <Text
+              style={{
+                color: colors.incorrect,
+                fontWeight: FontWeight.semibold,
+              }}
+            >
               , {missedCount} missed
             </Text>
           )}
@@ -120,22 +138,40 @@ function SubjectRow({
       <View style={[styles.subjectIconWrap, { backgroundColor: theme.tint }]}>
         <DomainIcon size={16} color={theme.accent} strokeWidth={2} />
       </View>
-      <Text style={[styles.subjectDomain, { color: colors.textPrimary }]}>{domain}</Text>
+      <Text style={[styles.subjectDomain, { color: colors.textPrimary }]}>
+        {domain}
+      </Text>
       <View style={styles.subjectRight}>
         {improved && (
-          <View style={[styles.improvedBadge, { backgroundColor: colors.correct + "15" }]}>
+          <View
+            style={[
+              styles.improvedBadge,
+              { backgroundColor: colors.correct + "15" },
+            ]}
+          >
             <TrendingUp size={12} color={colors.correct} strokeWidth={2.5} />
-            <Text style={[styles.improvedText, { color: colors.correct }]}>Improved</Text>
+            <Text style={[styles.improvedText, { color: colors.correct }]}>
+              Improved
+            </Text>
           </View>
         )}
-        <View style={[styles.subjectBarTrack, { backgroundColor: colors.border + "40" }]}>
+        <View
+          style={[
+            styles.subjectBarTrack,
+            { backgroundColor: colors.border + "40" },
+          ]}
+        >
           <View
             style={[
               styles.subjectBarFill,
               {
                 width: `${Math.max(pct * 100, 8)}%`,
                 backgroundColor:
-                  pct >= 0.8 ? colors.correct : pct >= 0.5 ? colors.warning : colors.incorrect,
+                  pct >= 0.8
+                    ? colors.correct
+                    : pct >= 0.5
+                      ? colors.warning
+                      : colors.incorrect,
               },
             ]}
           />
@@ -153,11 +189,13 @@ function SubjectRow({
 function QuestionReviewItem({
   questionId,
   result,
+  selectedAnswerIndex,
   questionType,
   colors,
 }: {
   questionId: string;
   result: "correct" | "incorrect" | null;
+  selectedAnswerIndex?: number | null;
   questionType?: "new" | "missed" | "resurfaced";
   colors: ReturnType<typeof useThemeColors>;
 }) {
@@ -167,13 +205,25 @@ function QuestionReviewItem({
 
   const typeConfig = {
     new: { label: "New", Icon: Sparkles, color: colors.primary },
-    missed: { label: "Previously Missed", Icon: Target, color: colors.incorrect },
-    resurfaced: { label: "Knowledge Check", Icon: RotateCcw, color: colors.correct },
+    missed: {
+      label: "Previously Missed",
+      Icon: Target,
+      color: colors.incorrect,
+    },
+    resurfaced: {
+      label: "Knowledge Check",
+      Icon: RotateCcw,
+      color: colors.correct,
+    },
   };
 
   const theme = getThemeForDomain(question.domain);
   const DomainIcon = theme.icon;
   const isCorrect = result === "correct";
+  const selectedAnswer =
+    selectedAnswerIndex !== null && selectedAnswerIndex !== undefined
+      ? question.choices[selectedAnswerIndex]
+      : null;
 
   const tConfig = questionType ? typeConfig[questionType] : null;
   const TypeIcon = tConfig?.Icon;
@@ -188,7 +238,11 @@ function QuestionReviewItem({
         <View
           style={[
             styles.reviewResultIcon,
-            { backgroundColor: isCorrect ? colors.correct + "18" : colors.incorrect + "18" },
+            {
+              backgroundColor: isCorrect
+                ? colors.correct + "18"
+                : colors.incorrect + "18",
+            },
           ]}
         >
           {isCorrect ? (
@@ -198,7 +252,10 @@ function QuestionReviewItem({
           )}
         </View>
 
-        <Text style={[styles.reviewPrompt, { color: colors.textPrimary }]} numberOfLines={expanded ? undefined : 1}>
+        <Text
+          style={[styles.reviewPrompt, { color: colors.textPrimary }]}
+          numberOfLines={expanded ? undefined : 1}
+        >
           {question.prompt}
         </Text>
 
@@ -210,34 +267,92 @@ function QuestionReviewItem({
       </View>
 
       <View style={styles.reviewBadges}>
-        <View style={[styles.miniBadge, { backgroundColor: theme.tint, borderColor: theme.accent + "30" }]}>
+        <View
+          style={[
+            styles.miniBadge,
+            { backgroundColor: theme.tint, borderColor: theme.accent + "30" },
+          ]}
+        >
           <DomainIcon size={11} color={theme.accent} strokeWidth={2} />
-          <Text style={[styles.miniBadgeText, { color: theme.accent }]}>{question.domain}</Text>
+          <Text style={[styles.miniBadgeText, { color: theme.accent }]}>
+            {question.domain}
+          </Text>
         </View>
         {tConfig && TypeIcon && (
           <View
             style={[
               styles.miniBadge,
-              { backgroundColor: tConfig.color + "12", borderColor: tConfig.color + "25" },
+              {
+                backgroundColor: tConfig.color + "12",
+                borderColor: tConfig.color + "25",
+              },
             ]}
           >
             <TypeIcon size={11} color={tConfig.color} strokeWidth={2} />
-            <Text style={[styles.miniBadgeText, { color: tConfig.color }]}>{tConfig.label}</Text>
+            <Text style={[styles.miniBadgeText, { color: tConfig.color }]}>
+              {tConfig.label}
+            </Text>
           </View>
         )}
       </View>
 
       {expanded && (
         <View style={styles.reviewExpanded}>
-          <View style={[styles.reviewCorrectAnswer, isCorrect ? { backgroundColor: colors.correct + "10", borderLeftColor: colors.correct } : { backgroundColor: colors.incorrect + "10", borderLeftColor: colors.incorrect }]}>
-            <Text style={[styles.reviewCorrectLabel, { color: isCorrect ? colors.correct : colors.incorrect }]}>
+          {selectedAnswer && (
+            <View
+              style={[
+                styles.reviewCorrectAnswer,
+                {
+                  backgroundColor: colors.primary + "10",
+                  borderLeftColor: colors.primary,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.reviewCorrectLabel, { color: colors.primary }]}
+              >
+                Your answer
+              </Text>
+              <Text
+                style={[styles.reviewCorrectText, { color: colors.textPrimary }]}
+              >
+                {selectedAnswer}
+              </Text>
+            </View>
+          )}
+          <View
+            style={[
+              styles.reviewCorrectAnswer,
+              isCorrect && selectedAnswer
+                ? {
+                    backgroundColor: colors.correct + "10",
+                    borderLeftColor: colors.correct,
+                  }
+                : {
+                    backgroundColor: colors.incorrect + "10",
+                    borderLeftColor: colors.incorrect,
+                  },
+            ]}
+          >
+            <Text
+              style={[
+                styles.reviewCorrectLabel,
+                { color: isCorrect ? colors.correct : colors.incorrect },
+              ]}
+            >
               {isCorrect ? "Your answer" : "Correct answer"}
             </Text>
-            <Text style={[styles.reviewCorrectText, { color: colors.textPrimary }]}>
+            <Text
+              style={[styles.reviewCorrectText, { color: colors.textPrimary }]}
+            >
               {question.choices[question.correctIndex]}
             </Text>
           </View>
-          <Text style={[styles.reviewExplanation, { color: colors.textSecondary }]}>{question.explanation}</Text>
+          <Text
+            style={[styles.reviewExplanation, { color: colors.textSecondary }]}
+          >
+            {question.explanation}
+          </Text>
         </View>
       )}
     </TouchableOpacity>
@@ -259,14 +374,36 @@ function RetryResultsCard({
   const retryTotal = retryQuestionIds.length;
 
   return (
-    <View style={[styles.retryResultsCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "20" }]}>
+    <View
+      style={[
+        styles.retryResultsCard,
+        {
+          backgroundColor: colors.primary + "08",
+          borderColor: colors.primary + "20",
+        },
+      ]}
+    >
       <View style={styles.retryResultsHeader}>
-        <View style={[styles.retryResultsIconWrap, { backgroundColor: colors.primary + "15" }]}>
+        <View
+          style={[
+            styles.retryResultsIconWrap,
+            { backgroundColor: colors.primary + "15" },
+          ]}
+        >
           <RefreshCw size={18} color={colors.primary} strokeWidth={2} />
         </View>
         <View>
-          <Text style={[styles.retryResultsTitle, { color: colors.textPrimary }]}>Practice Round Results</Text>
-          <Text style={[styles.retryResultsSubtitle, { color: colors.textTertiary }]}>
+          <Text
+            style={[styles.retryResultsTitle, { color: colors.textPrimary }]}
+          >
+            Practice Round Results
+          </Text>
+          <Text
+            style={[
+              styles.retryResultsSubtitle,
+              { color: colors.textTertiary },
+            ]}
+          >
             You got {retryCorrect} of {retryTotal} correct on retry
           </Text>
         </View>
@@ -282,7 +419,11 @@ function RetryResultsCard({
               <View
                 style={[
                   styles.retryResultDot,
-                  { backgroundColor: isCorrect ? colors.correct : colors.incorrect },
+                  {
+                    backgroundColor: isCorrect
+                      ? colors.correct
+                      : colors.incorrect,
+                  },
                 ]}
               >
                 {isCorrect ? (
@@ -291,7 +432,13 @@ function RetryResultsCard({
                   <X size={10} color={colors.textInverse} strokeWidth={3} />
                 )}
               </View>
-              <Text style={[styles.retryResultText, { color: colors.textSecondary }]} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.retryResultText,
+                  { color: colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
                 {question.prompt}
               </Text>
             </View>
@@ -299,7 +446,12 @@ function RetryResultsCard({
         })}
       </View>
 
-      <View style={[styles.retryInfoNote, { borderTopColor: colors.primary + "20" }]}>
+      <View
+        style={[
+          styles.retryInfoNote,
+          { borderTopColor: colors.primary + "20" },
+        ]}
+      >
         <Info size={13} color={colors.textTertiary} strokeWidth={2} />
         <Text style={[styles.retryInfoText, { color: colors.textTertiary }]}>
           These results are for practice only and were not saved.
@@ -330,8 +482,10 @@ export default function SessionSummaryScreen() {
         }
       };
       fetchSession();
-      return () => { active = false; };
-    }, [])
+      return () => {
+        active = false;
+      };
+    }, []),
   );
 
   // Derived data
@@ -341,13 +495,19 @@ export default function SessionSummaryScreen() {
     const { questionIds, results, questionTypes, score } = session;
     const total = questionIds.length;
 
-    const typeStats: Record<"new" | "missed" | "resurfaced", { correct: number; total: number }> = {
+    const typeStats: Record<
+      "new" | "missed" | "resurfaced",
+      { correct: number; total: number }
+    > = {
       new: { correct: 0, total: 0 },
       missed: { correct: 0, total: 0 },
       resurfaced: { correct: 0, total: 0 },
     };
 
-    const subjectStats: Record<string, { correct: number; total: number; improved: boolean }> = {};
+    const subjectStats: Record<
+      string,
+      { correct: number; total: number; improved: boolean }
+    > = {};
 
     questionIds.forEach((id, i) => {
       const qType = questionTypes?.[id] ?? "new";
@@ -369,14 +529,19 @@ export default function SessionSummaryScreen() {
       }
     });
 
-    const missedIds = questionIds.filter((_, i) => results?.[i] === "incorrect");
+    const missedIds = questionIds.filter(
+      (_, i) => results?.[i] === "incorrect",
+    );
 
     return { total, score, typeStats, subjectStats, missedIds };
   }, [session]);
 
   if (loading || !session || !sessionData) {
     return (
-      <ScreenContainer edges={['top', 'left', 'right']} style={{ justifyContent: "center", alignItems: "center" }}>
+      <ScreenContainer
+        edges={["top", "left", "right"]}
+        style={{ justifyContent: "center", alignItems: "center" }}
+      >
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
         <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
@@ -399,9 +564,11 @@ export default function SessionSummaryScreen() {
       originalQuestionIds: session.questionIds,
       originalResults: session.results ?? [],
       originalScore: session.score,
+      originalSelectedAnswerIndices: session.selectedAnswerIndices ?? [],
       questionIds: missedIds,
       currentIndex: 0,
       results: new Array(missedIds.length).fill(null),
+      selectedAnswerIndices: new Array(missedIds.length).fill(null),
     };
 
     await saveSession(retrySession);
@@ -410,7 +577,10 @@ export default function SessionSummaryScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right']} style={styles.outerContainer}>
+    <ScreenContainer
+      edges={["top", "left", "right"]}
+      style={styles.outerContainer}
+    >
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
 
       {/* ── Custom header bar ── */}
@@ -430,18 +600,33 @@ export default function SessionSummaryScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xxl }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + Spacing.xxl },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── 1. Score Hero ── */}
         <View style={styles.heroSection}>
           <ScoreRing score={score} total={total} />
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>{getTagline(score, total)}</Text>
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+            {getTagline(score, total)}
+          </Text>
         </View>
 
         {/* ── 2. Question Type Breakdown ── */}
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Question Breakdown</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border + "60",
+            },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+            Question Breakdown
+          </Text>
           {(["new", "missed", "resurfaced"] as const).map((type) =>
             typeStats[type].total > 0 ? (
               <TypeBreakdownRow
@@ -456,8 +641,18 @@ export default function SessionSummaryScreen() {
         </View>
 
         {/* ── 3. Subject Performance ── */}
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Subject Performance</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border + "60",
+            },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+            Subject Performance
+          </Text>
           {Object.entries(subjectStats).map(([domain, stats]) => (
             <SubjectRow
               key={domain}
@@ -471,13 +666,24 @@ export default function SessionSummaryScreen() {
         </View>
 
         {/* ── 4. Question Review List ── */}
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + "60" }]}>
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Question Review</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border + "60",
+            },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+            Question Review
+          </Text>
           {session.questionIds.map((id, i) => (
             <QuestionReviewItem
               key={id}
               questionId={id}
               result={session.results?.[i] ?? null}
+              selectedAnswerIndex={session.selectedAnswerIndices?.[i] ?? null}
               questionType={session.questionTypes?.[id]}
               colors={colors}
             />
@@ -496,21 +702,33 @@ export default function SessionSummaryScreen() {
         {/* ── 5. Retry Missed CTA ── */}
         {missedIds.length > 0 && (
           <View style={styles.retrySection}>
-            <TouchableOpacity 
-              style={[styles.retryButton, { backgroundColor: colors.primary }]} 
-              activeOpacity={0.8} 
+            <TouchableOpacity
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
               onPress={handleRetry}
             >
-              <RefreshCw size={18} color={colors.textInverse} strokeWidth={2.5} />
-              <Text style={[styles.retryButtonText, { color: colors.textInverse }]}>
+              <RefreshCw
+                size={18}
+                color={colors.textInverse}
+                strokeWidth={2.5}
+              />
+              <Text
+                style={[styles.retryButtonText, { color: colors.textInverse }]}
+              >
                 Retry Missed Questions ({missedIds.length})
               </Text>
             </TouchableOpacity>
             <View style={styles.retryDisclaimer}>
               <Lock size={13} color={colors.textTertiary} strokeWidth={2} />
-              <Text style={[styles.retryDisclaimerText, { color: colors.textTertiary }]}>
-                Retried answers won't be saved — these questions will still appear as missed in
-                future sessions so you get another real chance at them.
+              <Text
+                style={[
+                  styles.retryDisclaimerText,
+                  { color: colors.textTertiary },
+                ]}
+              >
+                Retried answers won&apos;t be saved — these questions will still
+                appear as missed in future sessions so you get another real
+                chance at them.
               </Text>
             </View>
           </View>
@@ -518,12 +736,20 @@ export default function SessionSummaryScreen() {
 
         {/* ── 6. Back to Home ── */}
         <TouchableOpacity
-          style={[styles.homeButton, { borderColor: colors.primary + "30", backgroundColor: colors.primary + "08" }]}
+          style={[
+            styles.homeButton,
+            {
+              borderColor: colors.primary + "30",
+              backgroundColor: colors.primary + "08",
+            },
+          ]}
           activeOpacity={0.8}
           onPress={() => router.dismiss()}
         >
           <Home size={16} color={colors.primary} strokeWidth={2} />
-          <Text style={[styles.homeButtonText, { color: colors.primary }]}>Back to Home</Text>
+          <Text style={[styles.homeButtonText, { color: colors.primary }]}>
+            Back to Home
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: Spacing.xxl }} />

@@ -1,8 +1,8 @@
 import { ScreenContainer } from "@/components/screen-container";
-import { useThemeColors } from "@/contexts/theme-context";
 import { getThemeForDomain } from "@/constants/domain-themes";
+import { useThemeColors } from "@/contexts/theme-context";
 import * as Haptics from "expo-haptics";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Check,
   RotateCcw,
@@ -34,9 +34,12 @@ import {
 } from "../constants/theme";
 import { seedQuestions } from "../data/questions";
 import {
-  DailySession,
+  buildShuffledQuestionIds,
   completeSession,
+  DailySession,
+  loadFreeplaySession,
   loadSession,
+  saveFreeplaySession,
   saveSession,
   updateQuestionStats,
 } from "../utils/storage";
@@ -153,8 +156,10 @@ const tlStyles = StyleSheet.create({
 
 export default function QuizScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const requestedMode = params.mode === "freeplay" ? "freeplay" : "daily";
 
   const [session, setSession] = useState<DailySession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,7 +175,10 @@ export default function QuizScreen() {
 
   useEffect(() => {
     const fetchSession = async () => {
-      const s = await loadSession();
+      const s =
+        requestedMode === "freeplay"
+          ? await loadFreeplaySession()
+          : await loadSession();
       if (!s) {
         router.dismiss();
         return;
@@ -179,8 +187,12 @@ export default function QuizScreen() {
         s.results && s.results.length > 0
           ? s.results
           : new Array(s.questionIds.length).fill(null);
+      const loadedSelectedAnswerIndices =
+        s.selectedAnswerIndices && s.selectedAnswerIndices.length > 0
+          ? s.selectedAnswerIndices
+          : new Array(s.questionIds.length).fill(null);
 
-      setSession(s);
+      setSession({ ...s, selectedAnswerIndices: loadedSelectedAnswerIndices });
       setResults(loadedResults);
 
       if (loadedResults[s.currentIndex]) {
@@ -191,7 +203,7 @@ export default function QuizScreen() {
       setLoading(false);
     };
     fetchSession();
-  }, [router]);
+  }, [requestedMode, router]);
 
   const currentIndex = session?.currentIndex ?? 0;
   const questionIds = session?.questionIds ?? [];
@@ -231,7 +243,9 @@ export default function QuizScreen() {
         style={{ justifyContent: "center", alignItems: "center" }}
       >
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-        <Text style={{ color: colors.textPrimary }}>Error: Question not found</Text>
+        <Text style={{ color: colors.textPrimary }}>
+          Error: Question not found
+        </Text>
         <Button title="Go Home" onPress={() => router.dismiss()} />
       </ScreenContainer>
     );
@@ -240,6 +254,7 @@ export default function QuizScreen() {
   // ─── Derived state ────────────────────────────────────────────────────────
 
   const isRetryMode = session.retryMode === true;
+  const isFreeplayMode = session.mode === "freeplay";
   const DomainIcon = domainTheme.icon;
   const answeredResult = results[currentIndex];
   const isCorrect = answeredResult
@@ -247,6 +262,15 @@ export default function QuizScreen() {
     : selectedOriginalIndex !== null &&
       selectedOriginalIndex === question.correctIndex;
   const isLastQuestion = currentIndex + 1 >= questionIds.length;
+
+  const persistSession = async (nextSession: DailySession) => {
+    if (nextSession.mode === "freeplay") {
+      await saveFreeplaySession(nextSession);
+      return;
+    }
+
+    await saveSession(nextSession);
+  };
 
   // ─── Handlers  ────────────────────────────────────────────────────────────
 
@@ -267,18 +291,24 @@ export default function QuizScreen() {
     const nextResults = [...results];
     nextResults[currentIndex] = result;
     setResults(nextResults);
+    const nextSelectedAnswerIndices = [
+      ...(session.selectedAnswerIndices ??
+        new Array(session.questionIds.length).fill(null)),
+    ];
+    nextSelectedAnswerIndices[currentIndex] = originalIndex;
 
     const updatedSession = {
       ...session,
       status: "in-progress" as const,
       results: nextResults,
+      selectedAnswerIndices: nextSelectedAnswerIndices,
     };
     if (correct && !isRetryMode) updatedSession.score += 1;
 
     setSession(updatedSession);
-    await saveSession(updatedSession);
+    await persistSession(updatedSession);
 
-    if (!isRetryMode) {
+    if (!isRetryMode && !isFreeplayMode) {
       await updateQuestionStats(question.id, correct);
     }
 
@@ -311,18 +341,40 @@ export default function QuizScreen() {
             finalSession.originalQuestionIds ?? finalSession.questionIds,
           results: finalSession.originalResults ?? finalSession.results,
           score: finalSession.originalScore ?? finalSession.score,
+          selectedAnswerIndices:
+            finalSession.originalSelectedAnswerIndices ??
+            finalSession.selectedAnswerIndices,
           currentIndex: 0,
         };
-        await saveSession(restoredSession);
+        await persistSession(restoredSession);
         // Pop back to session-summary (which is below us in the stack)
         router.dismiss();
+      } else if (isFreeplayMode) {
+        const reshuffledIds = buildShuffledQuestionIds();
+        finalSession.questionIds = [
+          ...finalSession.questionIds,
+          ...reshuffledIds,
+        ];
+        finalSession.results = [
+          ...(finalSession.results ?? []),
+          ...new Array(reshuffledIds.length).fill(null),
+        ];
+        finalSession.selectedAnswerIndices = [
+          ...(finalSession.selectedAnswerIndices ?? []),
+          ...new Array(reshuffledIds.length).fill(null),
+        ];
+        finalSession.currentIndex += 1;
+        await persistSession(finalSession);
+        setSession(finalSession);
+        setSelectedOriginalIndex(null);
+        setPhase("answering");
       } else {
         await completeSession(finalSession);
         router.replace("/session-summary");
       }
     } else {
       finalSession.currentIndex += 1;
-      await saveSession(finalSession);
+      await persistSession(finalSession);
       setSession(finalSession);
       setSelectedOriginalIndex(null);
       setPhase("answering");
@@ -337,13 +389,15 @@ export default function QuizScreen() {
         ...session,
         retryMode: false,
         status: "completed",
-        questionIds:
-          session.originalQuestionIds ?? session.questionIds,
+        questionIds: session.originalQuestionIds ?? session.questionIds,
         results: session.originalResults ?? session.results,
         score: session.originalScore ?? session.score,
+        selectedAnswerIndices:
+          session.originalSelectedAnswerIndices ??
+          session.selectedAnswerIndices,
         currentIndex: 0,
       };
-      await saveSession(restoredSession);
+      await persistSession(restoredSession);
     }
     router.dismiss();
   };
@@ -351,14 +405,21 @@ export default function QuizScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} style={styles.outerContainer}>
+    <ScreenContainer
+      edges={["top", "left", "right"]}
+      style={styles.outerContainer}
+    >
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
 
       {/* ── Custom header bar ── */}
       <View style={styles.customHeader}>
         <View style={styles.customHeaderSpacer} />
         <Text style={[styles.customHeaderTitle, { color: colors.textPrimary }]}>
-          {isRetryMode ? "Practice Round" : "Daily Session"}
+          {isRetryMode
+            ? "Practice Round"
+            : isFreeplayMode
+              ? "Freeplay"
+              : "Daily Session"}
         </Text>
         <TouchableOpacity
           onPress={handleExit}
@@ -370,23 +431,100 @@ export default function QuizScreen() {
       </View>
 
       {/* ── Practice mode banner ── */}
-      {isRetryMode && (
-        <View style={[styles.practiceBanner, { backgroundColor: colors.warning + "18", borderBottomColor: colors.warning + "40" }]}>
+      {(isRetryMode || isFreeplayMode) && (
+        <View
+          style={[
+            styles.practiceBanner,
+            {
+              backgroundColor: colors.warning + "18",
+              borderBottomColor: colors.warning + "40",
+            },
+          ]}
+        >
           <Text style={[styles.practiceBannerText, { color: colors.warning }]}>
-            Practice Mode — answers won't be saved
+            {isFreeplayMode
+              ? "Freeplay Mode — answers won't be saved"
+              : "Practice Mode — answers won't be saved"}
           </Text>
         </View>
       )}
 
       {/* ── Fixed progress timeline header ── */}
-      <View style={[styles.timelineHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <ProgressTimeline
-          total={questionIds.length}
-          currentIndex={currentIndex}
-          results={results}
-          colors={colors}
-        />
-      </View>
+      {isFreeplayMode ? (
+        <View
+          style={[
+            styles.freeplayHeader,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.freeplayMetric,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              style={[
+                styles.freeplayMetricLabel,
+                { color: colors.textTertiary },
+              ]}
+            >
+              Question
+            </Text>
+            <Text
+              style={[
+                styles.freeplayMetricValue,
+                { color: colors.textPrimary },
+              ]}
+            >
+              {currentIndex + 1}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.freeplayMetric,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              style={[
+                styles.freeplayMetricLabel,
+                { color: colors.textTertiary },
+              ]}
+            >
+              Score
+            </Text>
+            <Text
+              style={[
+                styles.freeplayMetricValue,
+                { color: colors.textPrimary },
+              ]}
+            >
+              {session.score}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.timelineHeader,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <ProgressTimeline
+            total={questionIds.length}
+            currentIndex={currentIndex}
+            results={results}
+            colors={colors}
+          />
+        </View>
+      )}
 
       {/* ── Scrollable quiz body ── */}
       <ScrollView
@@ -464,7 +602,9 @@ export default function QuizScreen() {
         </View>
 
         {/* ── Question prompt ── */}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{question.prompt}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          {question.prompt}
+        </Text>
 
         {/* ══════════════════════════════════════════════════════════════════════
             PHASE: answering — show the shuffled choices
@@ -476,7 +616,10 @@ export default function QuizScreen() {
                 key={index}
                 style={[
                   styles.choiceButton,
-                  { backgroundColor: colors.surface, borderColor: domainTheme.accent + "30" },
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: domainTheme.accent + "30",
+                  },
                 ]}
                 activeOpacity={0.7}
                 onPress={() => handleChoice(choiceObj.originalIndex)}
@@ -497,7 +640,11 @@ export default function QuizScreen() {
                       {String.fromCharCode(65 + index)}
                     </Text>
                   </View>
-                  <Text style={[styles.choiceText, { color: colors.textPrimary }]}>{choiceObj.text}</Text>
+                  <Text
+                    style={[styles.choiceText, { color: colors.textPrimary }]}
+                  >
+                    {choiceObj.text}
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -539,8 +686,12 @@ export default function QuizScreen() {
               style={[
                 styles.correctAnswerCard,
                 {
-                  backgroundColor: isCorrect ? colors.correct + "12" : colors.incorrect + "12",
-                  borderLeftColor: isCorrect ? colors.correct : colors.incorrect,
+                  backgroundColor: isCorrect
+                    ? colors.correct + "12"
+                    : colors.incorrect + "12",
+                  borderLeftColor: isCorrect
+                    ? colors.correct
+                    : colors.incorrect,
                 },
               ]}
             >
@@ -552,20 +703,40 @@ export default function QuizScreen() {
               >
                 {isCorrect ? "Your answer" : "Correct answer"}
               </Text>
-              <Text style={[styles.correctAnswerText, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  styles.correctAnswerText,
+                  { color: colors.textPrimary },
+                ]}
+              >
                 {question.choices[question.correctIndex]}
               </Text>
             </View>
 
-            <View style={[styles.explanationBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.explanationText, { color: colors.textSecondary }]}>{question.explanation}</Text>
+            <View
+              style={[
+                styles.explanationBox,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.explanationText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                {question.explanation}
+              </Text>
               {question.learnMoreQueries &&
               question.learnMoreQueries.length > 0 ? (
                 <View style={styles.queriesContainer}>
                   {question.learnMoreQueries.map((query, index) => (
                     <TouchableOpacity
                       key={index}
-                      style={[styles.searchLink, { backgroundColor: colors.primary + "15" }]}
+                      style={[
+                        styles.searchLink,
+                        { backgroundColor: colors.primary + "15" },
+                      ]}
                       activeOpacity={0.7}
                       onPress={() => {
                         Linking.openURL(
@@ -578,13 +749,23 @@ export default function QuizScreen() {
                         color={colors.primary}
                         strokeWidth={2.5}
                       />
-                      <Text style={[styles.searchLinkText, { color: colors.primary }]}>{query}</Text>
+                      <Text
+                        style={[
+                          styles.searchLinkText,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        {query}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={[styles.searchLink, { backgroundColor: colors.primary + "15" }]}
+                  style={[
+                    styles.searchLink,
+                    { backgroundColor: colors.primary + "15" },
+                  ]}
                   activeOpacity={0.7}
                   onPress={() => {
                     const searchTerm =
@@ -597,7 +778,9 @@ export default function QuizScreen() {
                   }}
                 >
                   <Search size={14} color={colors.primary} strokeWidth={2.5} />
-                  <Text style={[styles.searchLinkText, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.searchLinkText, { color: colors.primary }]}
+                  >
                     Learn more about{" "}
                     {question.tags?.[0]?.replace(/-/g, " ") ||
                       question.subdomain}
@@ -649,8 +832,12 @@ export default function QuizScreen() {
                 }}
               />
             )}
-            <Text style={[styles.nextButtonText, { color: colors.textInverse }]}>
-              {isLastQuestion ? "Finish Session" : "Next Question"}
+            <Text
+              style={[styles.nextButtonText, { color: colors.textInverse }]}
+            >
+              {isLastQuestion && !isFreeplayMode
+                ? "Finish Session"
+                : "Next Question"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -685,6 +872,34 @@ const styles = StyleSheet.create({
     textAlign: "center",
     flex: 1,
   },
+  freeplayHeader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.screen,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  freeplayMetric: {
+    minWidth: 92,
+    alignItems: "center",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  freeplayMetricLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  freeplayMetricValue: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    marginTop: 2,
+  },
   timelineHeader: {
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.sm,
@@ -707,8 +922,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
     flexWrap: "wrap",
+    width: "100%",
   },
   domainBadge: {
     flexDirection: "row",
@@ -742,8 +959,9 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     marginBottom: Spacing.lg,
-    textAlign: "center",
+    textAlign: "left",
     lineHeight: 28,
+    width: "100%",
   },
 
   /* ── Answer choices ── */

@@ -69,6 +69,12 @@ function RootLayoutInner() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen
+          name="session-history"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

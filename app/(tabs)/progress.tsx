@@ -1,22 +1,16 @@
+import { ScreenContainer } from "@/components/screen-container";
 import { getThemeForDomain } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
-import { useFocusEffect } from "expo-router";
-import { ChevronDown, ChevronRight } from "lucide-react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ChevronDown, ChevronRight, History } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { seedQuestions } from "../../data/questions";
-import {
-  clearReverbStorage,
-  debugReverbStorage,
-  listAllStorage,
-} from "../../utils/storage-debug";
 import {
   FontSize,
   FontWeight,
@@ -25,13 +19,13 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/theme";
+import { seedQuestions } from "../../data/questions";
 import {
   calculateCurrentStreak,
   getDateStringForOffset,
   loadStats,
   UserStats,
 } from "../../utils/storage";
-import { ScreenContainer } from "@/components/screen-container";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,8 +97,7 @@ function buildDomainStats(stats: UserStats): DomainStat[] {
         .sort((a, b) => b.total - a.total),
     }))
     .sort((a, b) => {
-      const accDiff =
-        b.correct / b.total - a.correct / a.total;
+      const accDiff = b.correct / b.total - a.correct / a.total;
       return accDiff !== 0 ? accDiff : b.total - a.total;
     });
 }
@@ -164,7 +157,10 @@ function AccuracyBar({
   return (
     <View style={[barStyles.track, { backgroundColor: colors.divider }]}>
       <View
-        style={[barStyles.fill, { width: `${pct}%` as any, backgroundColor: accent }]}
+        style={[
+          barStyles.fill,
+          { width: `${pct}%` as any, backgroundColor: accent },
+        ]}
       />
     </View>
   );
@@ -190,6 +186,7 @@ function ProgressStreakChart({
   history: UserStats["history"];
   colors: ReturnType<typeof useThemeColors>;
 }) {
+  const router = useRouter();
   const chartData = useMemo(() => buildRecentChartData(history), [history]);
   const streak = useMemo(() => calculateCurrentStreak(history), [history]);
   const completedDays = chartData.filter((day) => day.completed);
@@ -220,19 +217,49 @@ function ProgressStreakChart({
     <View style={[styles.chartCard, { backgroundColor: colors.surface }]}>
       <View style={styles.chartHeader}>
         <View>
-          <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>Daily Streak</Text>
+          <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>
+            Daily Streak
+          </Text>
           <Text style={[styles.chartSubtitle, { color: colors.textTertiary }]}>
             Last 14 days
           </Text>
         </View>
-        <View
-          style={[
-            styles.chartStreakBadge,
-            { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30" },
-          ]}
-        >
-          <Text style={styles.chartStreakFlame}>🔥</Text>
-          <Text style={[styles.chartStreakCount, { color: colors.warning }]}>{streak}</Text>
+        <View style={styles.chartHeaderActions}>
+          <TouchableOpacity
+            style={[
+              styles.historyButton,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={() => router.push("/session-history")}
+          >
+            <History size={14} color={colors.textSecondary} strokeWidth={2.2} />
+            <Text
+              style={[
+                styles.historyButtonText,
+                { color: colors.textSecondary },
+              ]}
+            >
+              View History
+            </Text>
+          </TouchableOpacity>
+          <View
+            style={[
+              styles.chartStreakBadge,
+              {
+                backgroundColor: colors.warning + "15",
+                borderColor: colors.warning + "30",
+              },
+            ]}
+          >
+            <Text style={styles.chartStreakFlame}>🔥</Text>
+            <Text style={[styles.chartStreakCount, { color: colors.warning }]}>
+              {streak}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -253,12 +280,11 @@ function ProgressStreakChart({
                   styles.streakDayCell,
                   {
                     backgroundColor: containerColor,
-                    borderColor:
-                      isSelected
-                        ? colors.correct
-                        : day.isToday
-                          ? colors.textSecondary
-                          : "transparent",
+                    borderColor: isSelected
+                      ? colors.correct
+                      : day.isToday
+                        ? colors.textSecondary
+                        : "transparent",
                   },
                 ]}
               >
@@ -276,7 +302,10 @@ function ProgressStreakChart({
                 style={[
                   styles.chartDayLabel,
                   {
-                    color: isSelected || day.isToday ? colors.textPrimary : colors.textTertiary,
+                    color:
+                      isSelected || day.isToday
+                        ? colors.textPrimary
+                        : colors.textTertiary,
                   },
                 ]}
               >
@@ -288,16 +317,13 @@ function ProgressStreakChart({
       </View>
 
       {selectedDay && (
-        <View
-          style={[
-            styles.chartDetail,
-            { borderTopColor: colors.border },
-          ]}
-        >
+        <View style={[styles.chartDetail, { borderTopColor: colors.border }]}>
           <Text style={[styles.chartDetailDate, { color: colors.textPrimary }]}>
             {formatChartDate(selectedDay.date)}
           </Text>
-          <Text style={[styles.chartDetailValue, { color: colors.textSecondary }]}>
+          <Text
+            style={[styles.chartDetailValue, { color: colors.textSecondary }]}
+          >
             {selectedDay.completed
               ? `${selectedDay.score}/${selectedDay.total} correct`
               : "Missed day"}
@@ -308,12 +334,22 @@ function ProgressStreakChart({
   );
 }
 
-function SubdomainRow({ sub, accent, colors }: { sub: SubdomainStat; accent: string; colors: ReturnType<typeof useThemeColors> }) {
+function SubdomainRow({
+  sub,
+  accent,
+  colors,
+}: {
+  sub: SubdomainStat;
+  accent: string;
+  colors: ReturnType<typeof useThemeColors>;
+}) {
   const pct = accuracy(sub.correct, sub.total);
   return (
     <View style={[subStyle.row, { borderTopColor: colors.divider }]}>
       <View style={subStyle.header}>
-        <Text style={[subStyle.name, { color: colors.textSecondary }]}>{sub.subdomain}</Text>
+        <Text style={[subStyle.name, { color: colors.textSecondary }]}>
+          {sub.subdomain}
+        </Text>
         <Text style={[subStyle.pct, { color: accent }]}>{pct}%</Text>
       </View>
       <AccuracyBar pct={pct} accent={accent} colors={colors} />
@@ -349,14 +385,25 @@ const subStyle = StyleSheet.create({
   },
 });
 
-function DomainCard({ stat, colors }: { stat: DomainStat; colors: ReturnType<typeof useThemeColors> }) {
+function DomainCard({
+  stat,
+  colors,
+}: {
+  stat: DomainStat;
+  colors: ReturnType<typeof useThemeColors>;
+}) {
   const [expanded, setExpanded] = useState(false);
   const theme = getThemeForDomain(stat.domain);
   const DomainIcon = theme.icon;
   const pct = accuracy(stat.correct, stat.total);
 
   return (
-    <View style={[cardStyle.card, { backgroundColor: colors.surface, borderLeftColor: theme.accent }]}>
+    <View
+      style={[
+        cardStyle.card,
+        { backgroundColor: colors.surface, borderLeftColor: theme.accent },
+      ]}
+    >
       <TouchableOpacity
         style={cardStyle.header}
         activeOpacity={0.7}
@@ -366,16 +413,16 @@ function DomainCard({ stat, colors }: { stat: DomainStat; colors: ReturnType<typ
           <DomainIcon size={18} color={theme.accent} strokeWidth={2} />
         </View>
         <View style={cardStyle.titleBlock}>
-          <Text style={[cardStyle.domainName, { color: colors.textPrimary }]}>{stat.domain}</Text>
+          <Text style={[cardStyle.domainName, { color: colors.textPrimary }]}>
+            {stat.domain}
+          </Text>
           <Text style={[cardStyle.subtext, { color: colors.textTertiary }]}>
             {stat.total} {stat.total === 1 ? "question" : "questions"} tracked
           </Text>
         </View>
 
         <View style={cardStyle.rightCol}>
-          <View
-            style={[cardStyle.badge, { backgroundColor: theme.tint }]}
-          >
+          <View style={[cardStyle.badge, { backgroundColor: theme.tint }]}>
             <Text style={[cardStyle.badgeText, { color: theme.accent }]}>
               {pct}%
             </Text>
@@ -484,7 +531,9 @@ export default function ProgressTabScreen() {
 
   if (loading || !stats) {
     return (
-      <ScreenContainer style={{ justifyContent: "center", alignItems: "center" }}>
+      <ScreenContainer
+        style={{ justifyContent: "center", alignItems: "center" }}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
@@ -504,23 +553,37 @@ export default function ProgressTabScreen() {
       {/* ── Top stat cards ── */}
       <View style={styles.metricsRow}>
         <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>{totalSessions}</Text>
-          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Sessions</Text>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>
+            {totalSessions}
+          </Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>
+            Sessions
+          </Text>
         </View>
         <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>{overallAcc}%</Text>
-          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Accuracy</Text>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>
+            {overallAcc}%
+          </Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>
+            Accuracy
+          </Text>
         </View>
         <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>{totalUnique}</Text>
-          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Questions</Text>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>
+            {totalUnique}
+          </Text>
+          <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>
+            Questions
+          </Text>
         </View>
       </View>
 
       {/* ── Domain mastery ── */}
       <ProgressStreakChart history={stats.history || {}} colors={colors} />
 
-      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Domain Mastery</Text>
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+        Domain Mastery
+      </Text>
 
       {domainStats.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
@@ -529,12 +592,21 @@ export default function ProgressTabScreen() {
           </Text>
         </View>
       ) : (
-        domainStats.map((d) => <DomainCard key={d.domain} stat={d} colors={colors} />)
+        domainStats.map((d) => (
+          <DomainCard key={d.domain} stat={d} colors={colors} />
+        ))
       )}
 
       {/* ── Weak spots summary ── */}
-      <View style={[styles.weakCard, { backgroundColor: colors.surface, borderLeftColor: colors.warning }]}>
-        <Text style={[styles.weakTitle, { color: colors.textPrimary }]}>⚡ Weak Spots</Text>
+      <View
+        style={[
+          styles.weakCard,
+          { backgroundColor: colors.surface, borderLeftColor: colors.warning },
+        ]}
+      >
+        <Text style={[styles.weakTitle, { color: colors.textPrimary }]}>
+          ⚡ Weak Spots
+        </Text>
         <Text style={[styles.weakBody, { color: colors.textSecondary }]}>
           {missedCount > 0
             ? `You have ${missedCount} identified weak-spot ${missedCount === 1 ? "question" : "questions"}. Reverb automatically resurfaces these in future sessions to build retention.`
@@ -543,24 +615,46 @@ export default function ProgressTabScreen() {
       </View>
 
       {/* ── Debug tools ── */}
-      <View style={[styles.debugSection, { borderTopColor: colors.border }]}>
-        <Text style={[styles.debugTitle, { color: colors.textTertiary }]}>🛠 Debug Tools</Text>
+      {/* <View style={[styles.debugSection, { borderTopColor: colors.border }]}>
+        <Text style={[styles.debugTitle, { color: colors.textTertiary }]}>
+          🛠 Debug Tools
+        </Text>
         <TouchableOpacity
-          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[
+            styles.debugButton,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
           activeOpacity={0.7}
           onPress={() => debugReverbStorage()}
         >
-          <Text style={[styles.debugButtonText, { color: colors.textSecondary }]}>Dump Session & Stats</Text>
+          <Text
+            style={[styles.debugButtonText, { color: colors.textSecondary }]}
+          >
+            Dump Session & Stats
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[
+            styles.debugButton,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
           activeOpacity={0.7}
           onPress={() => listAllStorage()}
         >
-          <Text style={[styles.debugButtonText, { color: colors.textSecondary }]}>List All Storage</Text>
+          <Text
+            style={[styles.debugButtonText, { color: colors.textSecondary }]}
+          >
+            List All Storage
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.debugButton, { backgroundColor: colors.surface, borderColor: colors.incorrect + "40" }]}
+          style={[
+            styles.debugButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.incorrect + "40",
+            },
+          ]}
           activeOpacity={0.7}
           onPress={() =>
             Alert.alert(
@@ -581,7 +675,7 @@ export default function ProgressTabScreen() {
             Clear Storage
           </Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </ScreenContainer>
   );
 }
@@ -635,6 +729,10 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
+  chartHeaderActions: {
+    alignItems: "flex-end",
+    gap: Spacing.sm,
+  },
   chartTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
@@ -642,6 +740,19 @@ const styles = StyleSheet.create({
   chartSubtitle: {
     fontSize: FontSize.xs,
     marginTop: 2,
+  },
+  historyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  historyButtonText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   chartStreakBadge: {
     flexDirection: "row",

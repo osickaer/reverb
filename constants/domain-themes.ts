@@ -5,12 +5,7 @@
  * giving the quiz screen a visual "flavour" that changes per question.
  */
 
-import {
-  BookOpen,
-  BookText,
-  Globe,
-  type LucideIcon,
-} from "lucide-react-native";
+import { BookOpen, Globe, Calculator, type LucideIcon } from "lucide-react-native";
 
 export interface DomainTheme {
   /** Lucide icon component */
@@ -32,10 +27,10 @@ export const domainThemes: Record<string, DomainTheme> = {
     accent: "#00A676",
     tint: "#EAFAF4",
   },
-  Vocabulary: {
-    icon: BookText,
-    accent: "#6C5CE7",
-    tint: "#F0EEFF",
+  Math: {
+    icon: Calculator,
+    accent: "#7C3AED",
+    tint: "#F5F3FF",
   },
 };
 
