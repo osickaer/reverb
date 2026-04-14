@@ -215,7 +215,7 @@ export default function QuizScreen() {
     return question.choices
       .map((text, originalIndex) => ({ text, originalIndex }))
       .sort(() => 0.5 - Math.random());
-  }, [question?.id]);
+  }, [question]);
 
   const domainTheme = useMemo(
     () => getThemeForDomain(question?.domain ?? ""),

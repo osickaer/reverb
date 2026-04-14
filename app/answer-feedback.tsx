@@ -64,7 +64,7 @@ export default function AnswerFeedbackScreen() {
     };
 
     processAnswer();
-  }, []);
+  }, [router, selectedIndex]);
 
   if (loading || !session || !updatedSession) {
     return (

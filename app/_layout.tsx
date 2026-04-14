@@ -1,14 +1,17 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AppThemeProvider, useAppTheme } from '@/contexts/theme-context';
-import { getColors } from '@/constants/theme';
+import { AppThemeProvider, useAppTheme } from "@/contexts/theme-context";
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: "(tabs)",
 };
 
 /** Inner layout that can read the theme context */
@@ -16,29 +19,30 @@ function RootLayoutInner() {
   const { colorScheme, colors } = useAppTheme();
 
   // Build a custom navigation theme so header/background match our palette
-  const navTheme = colorScheme === 'dark'
-    ? {
-        ...DarkTheme,
-        colors: {
-          ...DarkTheme.colors,
-          background: colors.background,
-          card: colors.surface,
-          text: colors.textPrimary,
-          border: colors.border,
-          primary: colors.primary,
-        },
-      }
-    : {
-        ...DefaultTheme,
-        colors: {
-          ...DefaultTheme.colors,
-          background: colors.background,
-          card: colors.background,
-          text: colors.textPrimary,
-          border: colors.border,
-          primary: colors.primary,
-        },
-      };
+  const navTheme =
+    colorScheme === "dark"
+      ? {
+          ...DarkTheme,
+          colors: {
+            ...DarkTheme.colors,
+            background: colors.background,
+            card: colors.surface,
+            text: colors.textPrimary,
+            border: colors.border,
+            primary: colors.primary,
+          },
+        }
+      : {
+          ...DefaultTheme,
+          colors: {
+            ...DefaultTheme.colors,
+            background: colors.background,
+            card: colors.background,
+            text: colors.textPrimary,
+            border: colors.border,
+            primary: colors.primary,
+          },
+        };
 
   return (
     <ThemeProvider value={navTheme}>
@@ -49,7 +53,7 @@ function RootLayoutInner() {
           headerShadowVisible: false,
           headerBackTitle: "Back",
           contentStyle: { backgroundColor: colors.background },
-          animation: 'default',
+          animation: "default",
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -57,7 +61,7 @@ function RootLayoutInner() {
           name="quiz"
           options={{
             headerShown: false,
-            animation: 'none',
+            animation: "none",
             gestureEnabled: false,
           }}
         />
@@ -65,7 +69,7 @@ function RootLayoutInner() {
           name="session-summary"
           options={{
             headerShown: false,
-            animation: 'none',
+            animation: "none",
             gestureEnabled: false,
           }}
         />
@@ -76,7 +80,7 @@ function RootLayoutInner() {
           }}
         />
       </Stack>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </ThemeProvider>
   );
 }

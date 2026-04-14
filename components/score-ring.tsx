@@ -31,7 +31,7 @@ export function ScoreRing({
       duration: 1200,
       useNativeDriver: false,
     }).start();
-  }, [percentage]);
+  }, [percentage, animValue]);
 
   const strokeDashoffset = animValue.interpolate({
     inputRange: [0, 1],
