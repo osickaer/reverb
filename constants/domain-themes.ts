@@ -5,7 +5,8 @@
  * giving the quiz screen a visual "flavour" that changes per question.
  */
 
-import { BookOpen, Globe, Calculator, type LucideIcon } from "lucide-react-native";
+import { BookOpen, Globe, Sigma, type LucideIcon } from "lucide-react-native";
+import { useAppTheme, type ResolvedScheme } from "@/contexts/theme-context";
 
 export interface DomainTheme {
   /** Lucide icon component */
@@ -16,31 +17,79 @@ export interface DomainTheme {
   tint: string;
 }
 
-export const domainThemes: Record<string, DomainTheme> = {
+type ThemedDomainTheme = {
+  icon: LucideIcon;
+  light: Omit<DomainTheme, "icon">;
+  dark: Omit<DomainTheme, "icon">;
+};
+
+export const domainThemes: Record<string, ThemedDomainTheme> = {
   History: {
     icon: BookOpen,
-    accent: "#D4710B",
-    tint: "#FFF5EB",
+    light: {
+      accent: "#D4710B",
+      tint: "#FFF5EB",
+    },
+    dark: {
+      accent: "#F5A34A",
+      tint: "#352312",
+    },
   },
   Geography: {
     icon: Globe,
-    accent: "#00A676",
-    tint: "#EAFAF4",
+    light: {
+      accent: "#00A676",
+      tint: "#EAFAF4",
+    },
+    dark: {
+      accent: "#3DD6A5",
+      tint: "#103228",
+    },
   },
   Math: {
-    icon: Calculator,
-    accent: "#7C3AED",
-    tint: "#F5F3FF",
+    icon: Sigma,
+    light: {
+      accent: "#7C3AED",
+      tint: "#F5F3FF",
+    },
+    dark: {
+      accent: "#A970FF",
+      tint: "#26163F",
+    },
   },
 };
 
 /** Safe fallback for unknown domains */
-export const defaultTheme: DomainTheme = {
-  icon: BookOpen,
-  accent: "#636E72",
-  tint: "#F5F5F5",
+export const defaultTheme: Record<ResolvedScheme, DomainTheme> = {
+  light: {
+    icon: BookOpen,
+    accent: "#636E72",
+    tint: "#F5F5F5",
+  },
+  dark: {
+    icon: BookOpen,
+    accent: "#A0A7AE",
+    tint: "#2A2A2C",
+  },
 };
 
-export function getThemeForDomain(domain: string): DomainTheme {
-  return domainThemes[domain] ?? defaultTheme;
+export function getThemeForDomain(
+  domain: string,
+  scheme: ResolvedScheme = "light",
+): DomainTheme {
+  const theme = domainThemes[domain];
+  if (!theme) {
+    return defaultTheme[scheme];
+  }
+
+  return {
+    icon: theme.icon,
+    accent: theme[scheme].accent,
+    tint: theme[scheme].tint,
+  };
+}
+
+export function useDomainTheme(domain: string): DomainTheme {
+  const { colorScheme } = useAppTheme();
+  return getThemeForDomain(domain, colorScheme);
 }

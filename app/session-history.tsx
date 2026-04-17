@@ -1,6 +1,6 @@
 import { ScoreRing } from "@/components/score-ring";
 import { ScreenContainer } from "@/components/screen-container";
-import { getThemeForDomain } from "@/constants/domain-themes";
+import { useDomainTheme } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
 import {
   CompletedSessionSnapshot,
@@ -71,7 +71,7 @@ function HistoricalQuestionItem({
 
   if (!question) return null;
 
-  const theme = getThemeForDomain(question.domain);
+  const theme = useDomainTheme(question.domain);
   const DomainIcon = theme.icon;
   const isCorrect = result === "correct";
   const selectedAnswer =

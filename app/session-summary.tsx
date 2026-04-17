@@ -26,7 +26,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getThemeForDomain } from "../constants/domain-themes";
+import { useDomainTheme } from "../constants/domain-themes";
 import {
   FontSize,
   FontWeight,
@@ -129,7 +129,7 @@ function SubjectRow({
   improved: boolean;
   colors: ReturnType<typeof useThemeColors>;
 }) {
-  const theme = getThemeForDomain(domain);
+  const theme = useDomainTheme(domain);
   const DomainIcon = theme.icon;
   const pct = total > 0 ? correct / total : 0;
 
@@ -217,7 +217,7 @@ function QuestionReviewItem({
     },
   };
 
-  const theme = getThemeForDomain(question.domain);
+  const theme = useDomainTheme(question.domain);
   const DomainIcon = theme.icon;
   const isCorrect = result === "correct";
   const selectedAnswer =
@@ -303,13 +303,16 @@ function QuestionReviewItem({
               style={[
                 styles.reviewCorrectAnswer,
                 {
-                  backgroundColor: colors.primary + "10",
-                  borderLeftColor: colors.primary,
+                  backgroundColor: colors.incorrect + "10",
+                  borderLeftColor: colors.incorrect,
                 },
               ]}
             >
               <Text
-                style={[styles.reviewCorrectLabel, { color: colors.primary }]}
+                style={[
+                  styles.reviewCorrectLabel,
+                  { color: colors.incorrect },
+                ]}
               >
                 Your answer
               </Text>
@@ -329,15 +332,15 @@ function QuestionReviewItem({
                     borderLeftColor: colors.correct,
                   }
                 : {
-                    backgroundColor: colors.incorrect + "10",
-                    borderLeftColor: colors.incorrect,
+                    backgroundColor: colors.primary + "10",
+                    borderLeftColor: colors.primary,
                   },
             ]}
           >
             <Text
               style={[
                 styles.reviewCorrectLabel,
-                { color: isCorrect ? colors.correct : colors.incorrect },
+                { color: isCorrect ? colors.correct : colors.primary },
               ]}
             >
               {isCorrect ? "Your answer" : "Correct answer"}

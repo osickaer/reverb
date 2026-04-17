@@ -1,5 +1,5 @@
 import { ScreenContainer } from "@/components/screen-container";
-import { getThemeForDomain } from "@/constants/domain-themes";
+import { useDomainTheme } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronDown, ChevronRight, History } from "lucide-react-native";
@@ -393,7 +393,7 @@ function DomainCard({
   colors: ReturnType<typeof useThemeColors>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const theme = getThemeForDomain(stat.domain);
+  const theme = useDomainTheme(stat.domain);
   const DomainIcon = theme.icon;
   const pct = accuracy(stat.correct, stat.total);
 

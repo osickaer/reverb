@@ -1,9 +1,10 @@
 import { ScreenContainer } from "@/components/screen-container";
-import { getThemeForDomain } from "@/constants/domain-themes";
+import { useDomainTheme } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
+  Brain,
   Check,
   RotateCcw,
   Search,
@@ -217,10 +218,7 @@ export default function QuizScreen() {
       .sort(() => 0.5 - Math.random());
   }, [question]);
 
-  const domainTheme = useMemo(
-    () => getThemeForDomain(question?.domain ?? ""),
-    [question?.domain],
-  );
+  const domainTheme = useDomainTheme(question?.domain ?? "");
 
   // ─── Early returns ────────────────────────────────────────────────────────
 
@@ -257,10 +255,15 @@ export default function QuizScreen() {
   const isFreeplayMode = session.mode === "freeplay";
   const DomainIcon = domainTheme.icon;
   const answeredResult = results[currentIndex];
+  const selectedAnswerIndex =
+    selectedOriginalIndex ?? session.selectedAnswerIndices?.[currentIndex] ?? null;
+  const selectedAnswer =
+    selectedAnswerIndex !== null ? question.choices[selectedAnswerIndex] : null;
+  const isMathQuestion = question.domain === "Math";
   const isCorrect = answeredResult
     ? answeredResult === "correct"
-    : selectedOriginalIndex !== null &&
-      selectedOriginalIndex === question.correctIndex;
+    : selectedAnswerIndex !== null &&
+      selectedAnswerIndex === question.correctIndex;
   const isLastQuestion = currentIndex + 1 >= questionIds.length;
 
   const persistSession = async (nextSession: DailySession) => {
@@ -609,6 +612,28 @@ export default function QuizScreen() {
         {/* ══════════════════════════════════════════════════════════════════════
             PHASE: answering — show the shuffled choices
             ══════════════════════════════════════════════════════════════════════ */}
+        {isMathQuestion && (
+          <View
+            style={[
+              styles.mentalMathNote,
+              {
+                backgroundColor: domainTheme.tint,
+                borderColor: domainTheme.accent + "26",
+              },
+            ]}
+          >
+            <Brain size={16} color={domainTheme.accent} strokeWidth={2} />
+            <Text
+              style={[
+                styles.mentalMathNoteText,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Mental math only. No calculator.
+            </Text>
+          </View>
+        )}
+
         {phase === "answering" && (
           <View style={styles.choicesContainer}>
             {shuffledChoices.map((choiceObj, index) => (
@@ -682,23 +707,52 @@ export default function QuizScreen() {
               {isCorrect ? "Correct!" : "Incorrect"}
             </Text>
 
+            {!isCorrect && selectedAnswer && (
+              <View
+                style={[
+                  styles.correctAnswerCard,
+                  {
+                    backgroundColor: colors.incorrect + "10",
+                    borderLeftColor: colors.incorrect,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.correctAnswerHint,
+                    { color: colors.incorrect },
+                  ]}
+                >
+                  Your answer
+                </Text>
+                <Text
+                  style={[
+                    styles.correctAnswerText,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  {selectedAnswer}
+                </Text>
+              </View>
+            )}
+
             <View
               style={[
                 styles.correctAnswerCard,
                 {
                   backgroundColor: isCorrect
                     ? colors.correct + "12"
-                    : colors.incorrect + "12",
+                    : colors.primary + "12",
                   borderLeftColor: isCorrect
                     ? colors.correct
-                    : colors.incorrect,
+                    : colors.primary,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.correctAnswerHint,
-                  { color: isCorrect ? colors.correct : colors.incorrect },
+                  { color: isCorrect ? colors.correct : colors.primary },
                 ]}
               >
                 {isCorrect ? "Your answer" : "Correct answer"}
@@ -965,6 +1019,22 @@ const styles = StyleSheet.create({
   },
 
   /* ── Answer choices ── */
+  mentalMathNote: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  mentalMathNoteText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
   choicesContainer: {
     width: "100%",
     gap: Spacing.sm,

@@ -22,7 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getThemeForDomain } from "../../constants/domain-themes";
+import { useDomainTheme } from "../../constants/domain-themes";
 import {
   FontSize,
   FontWeight,
@@ -144,7 +144,7 @@ function DomainMiniCard({
   total: number;
   colors: ReturnType<typeof useThemeColors>;
 }) {
-  const theme = getThemeForDomain(domain);
+  const theme = useDomainTheme(domain);
   const DomainIcon = theme.icon;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
 
