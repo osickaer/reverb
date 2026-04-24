@@ -11,6 +11,8 @@ import { Alert } from "react-native";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AuthScreen } from "@/components/auth-screen";
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { AppThemeProvider, useAppTheme } from "@/contexts/theme-context";
 import {
   areDailyRemindersEnabled,
@@ -36,9 +38,14 @@ export const unstable_settings = {
 /** Inner layout that can read the theme context */
 function RootLayoutInner() {
   const { colorScheme, colors } = useAppTheme();
+  const { session, isLoading: isAuthLoading } = useAuth();
   const didRunStartupPrompt = useRef(false);
 
   useEffect(() => {
+    if (!session) {
+      return;
+    }
+
     const syncReminder = async () => {
       const session = await initDailySessionIfNeeded();
       await syncDailySessionReminder({
@@ -88,7 +95,7 @@ function RootLayoutInner() {
     };
 
     syncReminder();
-  }, []);
+  }, [session]);
 
   // Build a custom navigation theme so header/background match our palette
   const navTheme =
@@ -118,47 +125,51 @@ function RootLayoutInner() {
 
   return (
     <ThemeProvider value={navTheme}>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
-          headerBackTitle: "Back",
-          contentStyle: { backgroundColor: colors.background },
-          animation: "default",
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="quiz"
-          options={{
-            headerShown: false,
-            animation: "none",
-            gestureEnabled: false,
+      {isAuthLoading || !session ? (
+        <AuthScreen />
+      ) : (
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.textPrimary,
+            headerShadowVisible: false,
+            headerBackTitle: "Back",
+            contentStyle: { backgroundColor: colors.background },
+            animation: "default",
           }}
-        />
-        <Stack.Screen
-          name="session-summary"
-          options={{
-            headerShown: false,
-            animation: "none",
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="session-history"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="profile-settings"
-          options={{
-            title: "Settings",
-            headerShown: true,
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="quiz"
+            options={{
+              headerShown: false,
+              animation: "none",
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="session-summary"
+            options={{
+              headerShown: false,
+              animation: "none",
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="session-history"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="profile-settings"
+            options={{
+              title: "Settings",
+              headerShown: true,
+            }}
+          />
+        </Stack>
+      )}
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </ThemeProvider>
   );
@@ -168,7 +179,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppThemeProvider>
-        <RootLayoutInner />
+        <AuthProvider>
+          <RootLayoutInner />
+        </AuthProvider>
       </AppThemeProvider>
     </SafeAreaProvider>
   );

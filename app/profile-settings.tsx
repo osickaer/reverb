@@ -1,4 +1,5 @@
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/contexts/auth-context";
 import { useAppTheme, useThemeColors } from "@/contexts/theme-context";
 import {
   areDailyRemindersEnabled,
@@ -20,7 +21,6 @@ import { CircleAlert } from "lucide-react-native";
 import {
   FontSize,
   FontWeight,
-  LineHeight,
   Radius,
   Shadow,
   Spacing,
@@ -91,6 +91,7 @@ function SettingRow({
 
 export default function ProfileSettingsScreen() {
   const { colorScheme } = useAppTheme();
+  const { signOut } = useAuth();
   const colors = useThemeColors();
   const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
 
@@ -203,6 +204,23 @@ export default function ProfileSettingsScreen() {
     Alert.alert("Storage cleared", "Reverb session and stats data were cleared.");
   };
 
+  const handleLogOut = () => {
+    Alert.alert("Log out?", "You will need to log in again to use Reverb.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: async () => {
+          const result = await signOut();
+
+          if (result.error) {
+            Alert.alert("Log out failed", result.error);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <ScreenContainer scrollable style={styles.contentContainer}>
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
@@ -216,6 +234,25 @@ export default function ProfileSettingsScreen() {
         colors={colors}
         colorScheme={colorScheme}
       />
+
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+        Account
+      </Text>
+      <TouchableOpacity
+        style={[
+          styles.accountButton,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.incorrect + "40",
+          },
+        ]}
+        activeOpacity={0.7}
+        onPress={handleLogOut}
+      >
+        <Text style={[styles.accountButtonText, { color: colors.incorrect }]}>
+          Log out
+        </Text>
+      </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
         Debug Tools
@@ -360,5 +397,16 @@ const styles = StyleSheet.create({
   debugButtonText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
+  },
+  accountButton: {
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    marginBottom: Spacing.xxl,
+  },
+  accountButtonText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
   },
 });

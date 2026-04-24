@@ -1,7 +1,12 @@
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/contexts/auth-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useRouter } from "expo-router";
-import { ChevronRight, Settings as SettingsIcon, UserRound } from "lucide-react-native";
+import {
+  ChevronRight,
+  Settings as SettingsIcon,
+  UserRound,
+} from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
@@ -15,7 +20,9 @@ import {
 
 export default function ProfileTabScreen() {
   const colors = useThemeColors();
+  const { session } = useAuth();
   const router = useRouter();
+  const email = session?.user.email ?? "Signed in";
 
   return (
     <ScreenContainer scrollable style={styles.contentContainer}>
@@ -43,6 +50,16 @@ export default function ProfileTabScreen() {
           This is where profile customizations, preferences, and account-level
           controls can grow over time.
         </Text>
+        <View
+          style={[
+            styles.emailBadge,
+            { backgroundColor: colors.background, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.emailText, { color: colors.textSecondary }]}>
+            {email}
+          </Text>
+        </View>
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
@@ -111,6 +128,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.base,
     lineHeight: LineHeight.normal,
     marginTop: Spacing.sm,
+  },
+  emailBadge: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  emailText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
