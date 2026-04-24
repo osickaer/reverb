@@ -41,6 +41,7 @@ import {
   startFreeplaySession,
   UserStats,
 } from "../../utils/storage";
+import { syncDailySessionReminder } from "../../utils/notifications";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -294,6 +295,10 @@ export default function HomeScreen() {
           loadFreeplaySession(),
           loadStats(),
         ]);
+        await syncDailySessionReminder({
+          dateKey: s.date,
+          isCompleted: s.status === "completed",
+        });
         if (active) {
           setSession(s);
           setFreeplaySession(freeplay);

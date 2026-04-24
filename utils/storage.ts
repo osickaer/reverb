@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { seedQuestions } from "../data/questions";
 import { Question } from "../data/questions-interface";
+import { cancelDailySessionReminder } from "./notifications";
 
 const SESSION_KEY = "@reverb_daily_session";
 const FREEPLAY_SESSION_KEY = "@reverb_freeplay_session";
@@ -427,6 +428,7 @@ export const updateQuestionStats = async (
 export const completeSession = async (session: DailySession) => {
   session.status = "completed";
   await saveSession(session);
+  await cancelDailySessionReminder(session.date);
 
   const stats = await loadStats();
   stats.history[session.date] = {
