@@ -35,7 +35,8 @@ import {
   Shadow,
   Spacing,
 } from "../constants/theme";
-import { seedQuestions } from "../data/questions";
+import { fetchQuestions } from "../data/questions";
+import { Question } from "../data/questions-interface";
 import { DailySession, loadSession, saveSession } from "../utils/storage";
 
 // ─── Motivational tagline ───────────────────────────────────────────────────────
@@ -192,15 +193,19 @@ function QuestionReviewItem({
   selectedAnswerIndex,
   questionType,
   colors,
+  questionsById,
 }: {
   questionId: string;
   result: "correct" | "incorrect" | null;
   selectedAnswerIndex?: number | null;
   questionType?: "new" | "missed" | "resurfaced";
   colors: ReturnType<typeof useThemeColors>;
+  questionsById: Map<string, Question>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const question = seedQuestions.find((q) => q.id === questionId);
+  const question = questionsById.get(questionId);
+  const theme = useDomainTheme(question?.domain ?? "");
+
   if (!question) return null;
 
   const typeConfig = {
@@ -217,7 +222,6 @@ function QuestionReviewItem({
     },
   };
 
-  const theme = useDomainTheme(question.domain);
   const DomainIcon = theme.icon;
   const isCorrect = result === "correct";
   const selectedAnswer =
@@ -368,10 +372,12 @@ function RetryResultsCard({
   retryQuestionIds,
   retryResults,
   colors,
+  questionsById,
 }: {
   retryQuestionIds: string[];
   retryResults: ("correct" | "incorrect" | null)[];
   colors: ReturnType<typeof useThemeColors>;
+  questionsById: Map<string, Question>;
 }) {
   const retryCorrect = retryResults.filter((r) => r === "correct").length;
   const retryTotal = retryQuestionIds.length;
@@ -414,7 +420,7 @@ function RetryResultsCard({
 
       <View style={styles.retryResultsList}>
         {retryQuestionIds.map((id, i) => {
-          const question = seedQuestions.find((q) => q.id === id);
+          const question = questionsById.get(id);
           if (!question) return null;
           const isCorrect = retryResults[i] === "correct";
           return (
@@ -471,6 +477,7 @@ export default function SessionSummaryScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const [session, setSession] = useState<DailySession | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -478,9 +485,13 @@ export default function SessionSummaryScreen() {
       let active = true;
       const fetchSession = async () => {
         setLoading(true);
-        const s = await loadSession();
+        const [s, loadedQuestions] = await Promise.all([
+          loadSession(),
+          fetchQuestions(),
+        ]);
         if (active) {
           setSession(s);
+          setQuestions(loadedQuestions);
           setLoading(false);
         }
       };
@@ -494,6 +505,9 @@ export default function SessionSummaryScreen() {
   // Derived data
   const sessionData = useMemo(() => {
     if (!session) return null;
+    const questionsById = new Map(
+      questions.map((question) => [question.id, question]),
+    );
 
     const { questionIds, results, questionTypes, score } = session;
     const total = questionIds.length;
@@ -515,7 +529,7 @@ export default function SessionSummaryScreen() {
     questionIds.forEach((id, i) => {
       const qType = questionTypes?.[id] ?? "new";
       const result = results?.[i] ?? null;
-      const question = seedQuestions.find((q) => q.id === id);
+      const question = questionsById.get(id);
 
       typeStats[qType].total += 1;
       if (result === "correct") typeStats[qType].correct += 1;
@@ -536,8 +550,8 @@ export default function SessionSummaryScreen() {
       (_, i) => results?.[i] === "incorrect",
     );
 
-    return { total, score, typeStats, subjectStats, missedIds };
-  }, [session]);
+    return { total, score, typeStats, subjectStats, missedIds, questionsById };
+  }, [questions, session]);
 
   if (loading || !session || !sessionData) {
     return (
@@ -551,7 +565,14 @@ export default function SessionSummaryScreen() {
     );
   }
 
-  const { total, score, typeStats, subjectStats, missedIds } = sessionData;
+  const {
+    total,
+    score,
+    typeStats,
+    subjectStats,
+    missedIds,
+    questionsById,
+  } = sessionData;
   const hasRetryResults =
     session.retryQuestionIds &&
     session.retryResults &&
@@ -689,6 +710,7 @@ export default function SessionSummaryScreen() {
               selectedAnswerIndex={session.selectedAnswerIndices?.[i] ?? null}
               questionType={session.questionTypes?.[id]}
               colors={colors}
+              questionsById={questionsById}
             />
           ))}
         </View>
@@ -699,6 +721,7 @@ export default function SessionSummaryScreen() {
             retryQuestionIds={session.retryQuestionIds!}
             retryResults={session.retryResults!}
             colors={colors}
+            questionsById={questionsById}
           />
         )}
 

@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   domain: string; // History, Geography, Finance, Economics, etc.
   subdomain?: string;
-  difficulty?: "easy" | "medium" | "hard";
+  difficulty: "easy" | "medium" | "hard";
   conceptId: string;
   prompt: string;
   choices: string[];

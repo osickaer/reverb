@@ -33,7 +33,8 @@ import {
   Shadow,
   Spacing,
 } from "../constants/theme";
-import { seedQuestions } from "../data/questions";
+import { fetchQuestions } from "../data/questions";
+import { Question } from "../data/questions-interface";
 import {
   buildShuffledQuestionIds,
   completeSession,
@@ -163,6 +164,7 @@ export default function QuizScreen() {
   const requestedMode = params.mode === "freeplay" ? "freeplay" : "daily";
 
   const [session, setSession] = useState<DailySession | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<Phase>("answering");
   const [selectedOriginalIndex, setSelectedOriginalIndex] = useState<
@@ -176,14 +178,17 @@ export default function QuizScreen() {
 
   useEffect(() => {
     const fetchSession = async () => {
-      const s =
+      const [s, loadedQuestions] = await Promise.all([
         requestedMode === "freeplay"
-          ? await loadFreeplaySession()
-          : await loadSession();
+          ? loadFreeplaySession()
+          : loadSession(),
+        fetchQuestions(),
+      ]);
       if (!s) {
         router.dismiss();
         return;
       }
+      setQuestions(loadedQuestions);
       const loadedResults =
         s.results && s.results.length > 0
           ? s.results
@@ -209,7 +214,7 @@ export default function QuizScreen() {
   const currentIndex = session?.currentIndex ?? 0;
   const questionIds = session?.questionIds ?? [];
   const questionId = questionIds[currentIndex];
-  const question = seedQuestions.find((q) => q.id === questionId);
+  const question = questions.find((q) => q.id === questionId);
 
   const shuffledChoices = useMemo(() => {
     if (!question) return [];
@@ -353,7 +358,7 @@ export default function QuizScreen() {
         // Pop back to session-summary (which is below us in the stack)
         router.dismiss();
       } else if (isFreeplayMode) {
-        const reshuffledIds = buildShuffledQuestionIds();
+        const reshuffledIds = await buildShuffledQuestionIds();
         finalSession.questionIds = [
           ...finalSession.questionIds,
           ...reshuffledIds,

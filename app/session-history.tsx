@@ -35,7 +35,8 @@ import {
   Shadow,
   Spacing,
 } from "../constants/theme";
-import { seedQuestions } from "../data/questions";
+import { fetchQuestions } from "../data/questions";
+import { Question } from "../data/questions-interface";
 
 type HistoricalEntry = {
   date: string;
@@ -58,20 +59,22 @@ function HistoricalQuestionItem({
   snapshot,
   index,
   colors,
+  questionsById,
 }: {
   snapshot: CompletedSessionSnapshot;
   index: number;
   colors: ReturnType<typeof useThemeColors>;
+  questionsById: Map<string, Question>;
 }) {
   const questionId = snapshot.questionIds[index];
-  const question = seedQuestions.find((item) => item.id === questionId);
+  const question = questionsById.get(questionId);
   const result = snapshot.results[index];
   const selectedAnswerIndex = snapshot.selectedAnswerIndices[index];
   const [expanded, setExpanded] = useState(false);
+  const theme = useDomainTheme(question?.domain ?? "");
 
   if (!question) return null;
 
-  const theme = useDomainTheme(question.domain);
   const DomainIcon = theme.icon;
   const isCorrect = result === "correct";
   const selectedAnswer =
@@ -225,9 +228,11 @@ function HistoricalQuestionItem({
 function SessionCard({
   entry,
   colors,
+  questionsById,
 }: {
   entry: HistoricalEntry;
   colors: ReturnType<typeof useThemeColors>;
+  questionsById: Map<string, Question>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const pct = entry.total > 0 ? Math.round((entry.score / entry.total) * 100) : 0;
@@ -284,6 +289,7 @@ function SessionCard({
                   snapshot={entry.snapshot!}
                   index={index}
                   colors={colors}
+                  questionsById={questionsById}
                 />
               ))}
             </View>
@@ -320,6 +326,7 @@ export default function SessionHistoryScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -328,9 +335,13 @@ export default function SessionHistoryScreen() {
 
       const fetchStats = async () => {
         setLoading(true);
-        const nextStats = await loadStats();
+        const [nextStats, loadedQuestions] = await Promise.all([
+          loadStats(),
+          fetchQuestions(),
+        ]);
         if (isActive) {
           setStats(nextStats);
+          setQuestions(loadedQuestions);
           setLoading(false);
         }
       };
@@ -355,6 +366,11 @@ export default function SessionHistoryScreen() {
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [stats]);
+
+  const questionsById = useMemo(
+    () => new Map(questions.map((question) => [question.id, question])),
+    [questions],
+  );
 
   if (loading || !stats) {
     return (
@@ -428,7 +444,12 @@ export default function SessionHistoryScreen() {
       ) : (
         <View style={styles.list}>
           {entries.map((entry) => (
-            <SessionCard key={entry.date} entry={entry} colors={colors} />
+            <SessionCard
+              key={entry.date}
+              entry={entry}
+              colors={colors}
+              questionsById={questionsById}
+            />
           ))}
         </View>
       )}

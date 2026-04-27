@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { FontSize, FontWeight, Spacing } from "../constants/theme";
-import { seedQuestions } from "../data/questions";
+import { getQuestionById } from "../data/questions";
+import { Question } from "../data/questions-interface";
 import {
   DailySession,
   completeSession,
@@ -30,6 +31,7 @@ export default function AnswerFeedbackScreen() {
   const [updatedSession, setUpdatedSession] = useState<DailySession | null>(
     null,
   );
+  const [question, setQuestion] = useState<Question | null>(null);
 
   useEffect(() => {
     const processAnswer = async () => {
@@ -43,12 +45,13 @@ export default function AnswerFeedbackScreen() {
 
       const { currentIndex, questionIds } = currentSession;
       const questionId = questionIds[currentIndex];
-      const question = seedQuestions.find((q) => q.id === questionId);
+      const question = await getQuestionById(questionId);
 
       if (!question) {
         router.replace("/");
         return;
       }
+      setQuestion(question);
 
       const isCorrect = selectedIndex === question.correctIndex;
 
@@ -66,7 +69,7 @@ export default function AnswerFeedbackScreen() {
     processAnswer();
   }, [router, selectedIndex]);
 
-  if (loading || !session || !updatedSession) {
+  if (loading || !session || !updatedSession || !question) {
     return (
       <ScreenContainer
         style={{ justifyContent: "center", alignItems: "center" }}
@@ -77,9 +80,6 @@ export default function AnswerFeedbackScreen() {
   }
 
   const { currentIndex, questionIds } = session;
-  const questionId = questionIds[currentIndex];
-  const question = seedQuestions.find((q) => q.id === questionId)!;
-
   const isCorrect = selectedIndex === question.correctIndex;
   const isLastQuestion = currentIndex + 1 >= questionIds.length;
 

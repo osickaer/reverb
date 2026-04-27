@@ -19,7 +19,8 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/theme";
-import { seedQuestions } from "../../data/questions";
+import { fetchQuestions } from "../../data/questions";
+import { Question } from "../../data/questions-interface";
 import {
   calculateCurrentStreak,
   getDateStringForOffset,
@@ -54,7 +55,10 @@ interface StreakChartDay {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildDomainStats(stats: UserStats): DomainStat[] {
+function buildDomainStats(
+  stats: UserStats,
+  questionsById: Map<string, Question>,
+): DomainStat[] {
   const domainMap: Record<
     string,
     {
@@ -66,7 +70,7 @@ function buildDomainStats(stats: UserStats): DomainStat[] {
 
   const process = (ids: string[], isCorrect: boolean) => {
     for (const id of ids) {
-      const q = seedQuestions.find((s) => s.id === id);
+      const q = questionsById.get(id);
       if (!q) continue;
 
       if (!domainMap[q.domain]) {
@@ -509,6 +513,7 @@ const cardStyle = StyleSheet.create({
 export default function ProgressTabScreen() {
   const colors = useThemeColors();
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -516,9 +521,13 @@ export default function ProgressTabScreen() {
       let isActive = true;
       const fetchStats = async () => {
         setLoading(true);
-        const userStats = await loadStats();
+        const [userStats, loadedQuestions] = await Promise.all([
+          loadStats(),
+          fetchQuestions(),
+        ]);
         if (isActive) {
           setStats(userStats);
+          setQuestions(loadedQuestions);
           setLoading(false);
         }
       };
@@ -546,7 +555,10 @@ export default function ProgressTabScreen() {
   const overallAcc =
     totalUnique > 0 ? Math.round((correctCount / totalUnique) * 100) : 0;
 
-  const domainStats = buildDomainStats(stats);
+  const questionsById = new Map(
+    questions.map((question) => [question.id, question]),
+  );
+  const domainStats = buildDomainStats(stats, questionsById);
 
   return (
     <ScreenContainer scrollable style={styles.contentContainer}>

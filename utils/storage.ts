@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { seedQuestions } from "../data/questions";
+import { fetchQuestions } from "../data/questions";
 import { Question } from "../data/questions-interface";
 import { cancelDailySessionReminder } from "./notifications";
 
@@ -111,14 +111,15 @@ export const saveFreeplaySession = async (session: DailySession) => {
   }
 };
 
-export const buildShuffledQuestionIds = (): string[] => {
-  return [...seedQuestions]
+export const buildShuffledQuestionIds = async (): Promise<string[]> => {
+  const questions = await fetchQuestions();
+  return [...questions]
     .sort(() => 0.5 - Math.random())
     .map((question) => question.id);
 };
 
 export const startFreeplaySession = async (): Promise<DailySession> => {
-  const questionIds = buildShuffledQuestionIds();
+  const questionIds = await buildShuffledQuestionIds();
   const freeplaySession: DailySession = {
     date: new Date().toISOString(),
     mode: "freeplay",
@@ -183,6 +184,8 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   }
 
   const stats = await loadStats();
+  const questions = await fetchQuestions();
+  const questionById = new Map(questions.map((question) => [question.id, question]));
 
   const recentlySeenSet = new Set(stats.recentlySeen || []);
   const missedSet = new Set(stats.missedQuestions || []);
@@ -198,7 +201,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
 
   const getDomainCount = (domain: string) => {
     return selectedIds.reduce((count, id) => {
-      const question = seedQuestions.find((item) => item.id === id);
+      const question = questionById.get(id);
       return question?.domain === domain ? count + 1 : count;
     }, 0);
   };
@@ -234,7 +237,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   };
 
   // 1. 3 New questions
-  const newCandidates = seedQuestions.filter(
+  const newCandidates = questions.filter(
     (q) =>
       !recentlySeenSet.has(q.id) &&
       !missedSet.has(q.id) &&
@@ -261,7 +264,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   // 2. 1 Previously missed question
   const weakSubdomains = new Map<string, number>();
   for (const id of missedSet) {
-    const q = seedQuestions.find((s) => s.id === id);
+    const q = questionById.get(id);
     if (q && q.subdomain) {
       weakSubdomains.set(
         q.subdomain,
@@ -271,7 +274,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   }
 
   const getWeakCandidates = (avoidRecentlySeen: boolean) => {
-    return seedQuestions
+    return questions
       .filter(
         (q) =>
           !selectedIds.includes(q.id) &&
@@ -308,7 +311,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
     type: "new" | "missed" | "resurfaced";
   }[] = [];
 
-  const resurfacedPool = seedQuestions.filter(
+  const resurfacedPool = questions.filter(
     (q) =>
       correctSet.has(q.id) &&
       !recentlySeenSet.has(q.id) &&
@@ -318,7 +321,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
     ...resurfacedPool.map((q) => ({ q, type: "resurfaced" as const })),
   );
 
-  const extraNewPool = seedQuestions.filter(
+  const extraNewPool = questions.filter(
     (q) =>
       !recentlySeenSet.has(q.id) &&
       !missedSet.has(q.id) &&
@@ -329,7 +332,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
     ...extraNewPool.map((q) => ({ q, type: "new" as const })),
   );
 
-  const extraMissedPool = seedQuestions.filter(
+  const extraMissedPool = questions.filter(
     (q) => missedSet.has(q.id) && !selectedIds.includes(q.id),
   );
   wildcardCandidates.push(
@@ -346,7 +349,7 @@ export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   // 4. Fallback: fill to 5 questions
   const targetTotal = 5;
   if (selectedIds.length < targetTotal) {
-    const fallbackCandidates = seedQuestions.filter(
+    const fallbackCandidates = questions.filter(
       (q) => !selectedIds.includes(q.id),
     );
     const remainingFallbackCandidates = [...fallbackCandidates];

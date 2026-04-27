@@ -31,7 +31,8 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/theme";
-import { seedQuestions } from "../../data/questions";
+import { fetchQuestions } from "../../data/questions";
+import { Question } from "../../data/questions-interface";
 import {
   calculateCurrentStreak,
   DailySession,
@@ -283,6 +284,7 @@ export default function HomeScreen() {
     null,
   );
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -290,10 +292,11 @@ export default function HomeScreen() {
       let active = true;
       const fetch = async () => {
         setLoading(true);
-        const [s, freeplay, st] = await Promise.all([
+        const [s, freeplay, st, loadedQuestions] = await Promise.all([
           initDailySessionIfNeeded(),
           loadFreeplaySession(),
           loadStats(),
+          fetchQuestions(),
         ]);
         await syncDailySessionReminder({
           dateKey: s.date,
@@ -303,6 +306,7 @@ export default function HomeScreen() {
           setSession(s);
           setFreeplaySession(freeplay);
           setStats(st);
+          setQuestions(loadedQuestions);
           setLoading(false);
         }
       };
@@ -317,12 +321,15 @@ export default function HomeScreen() {
   const derivedStats = useMemo(() => {
     if (!stats || !session) return null;
     const missedCount = (stats.missedQuestions || []).length;
+    const questionsById = new Map(
+      questions.map((question) => [question.id, question]),
+    );
 
     // Build domain stats
     const domainMap: Record<string, { correct: number; total: number }> = {};
     const processList = (ids: string[], isCorrect: boolean) => {
       for (const id of ids) {
-        const q = seedQuestions.find((s) => s.id === id);
+        const q = questionsById.get(id);
         if (!q) continue;
         if (!domainMap[q.domain])
           domainMap[q.domain] = { correct: 0, total: 0 };
@@ -340,7 +347,7 @@ export default function HomeScreen() {
     const streak = calculateCurrentStreak(stats.history || {});
 
     return { missedCount, domains, streak };
-  }, [stats, session]);
+  }, [questions, stats, session]);
 
   if (loading || !session || !stats || !derivedStats) {
     return (
@@ -611,7 +618,7 @@ export default function HomeScreen() {
         <Text style={[styles.practiceMeta, { color: colors.textTertiary }]}>
           {freeplaySession
             ? `${freeplayAnsweredCount} question${freeplayAnsweredCount === 1 ? "" : "s"} answered in your current run.`
-            : `Freshly shuffled from all ${seedQuestions.length} questions.`}
+            : `Freshly shuffled from all ${questions.length} questions.`}
         </Text>
 
         <View style={styles.practiceButtons}>
