@@ -8,10 +8,7 @@ import {
   Moon,
   Play,
   RefreshCw,
-  RotateCcw,
-  Sparkles,
   Sun,
-  Target,
   Zap,
 } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
@@ -66,47 +63,51 @@ function getTagline(score: number, total: number): string {
 
 function SessionPreviewChips({
   session,
-  colors,
+  questions,
 }: {
   session: DailySession;
-  colors: ReturnType<typeof useThemeColors>;
+  questions: Question[];
 }) {
-  const typeLabels: Record<
-    string,
-    { label: string; Icon: typeof Sparkles; color: string }
-  > = {
-    new: { label: "new", Icon: Sparkles, color: colors.primary },
-    missed: { label: "missed", Icon: Target, color: colors.incorrect },
-    resurfaced: { label: "review", Icon: RotateCcw, color: colors.correct },
-  };
+  const questionsById = new Map(
+    questions.map((question) => [question.id, question]),
+  );
+  const counts = new Map<string, number>();
 
-  const counts: Record<string, number> = {};
-  if (session.questionTypes) {
-    for (const type of Object.values(session.questionTypes)) {
-      counts[type] = (counts[type] || 0) + 1;
+  for (const questionId of session.questionIds) {
+    const domain = questionsById.get(questionId)?.domain;
+    if (domain) {
+      counts.set(domain, (counts.get(domain) ?? 0) + 1);
     }
   }
 
-  const chips = Object.entries(counts).filter(([t]) => typeLabels[t]);
+  const chips = Array.from(counts.entries());
   if (chips.length === 0) return null;
 
   return (
     <View style={chipStyles.row}>
-      {chips.map(([type, count]) => {
-        const conf = typeLabels[type];
-        const IconComp = conf.Icon;
-        return (
-          <View
-            key={type}
-            style={[chipStyles.chip, { backgroundColor: conf.color + "12" }]}
-          >
-            <IconComp size={12} color={conf.color} strokeWidth={2.5} />
-            <Text style={[chipStyles.chipText, { color: conf.color }]}>
-              {count} {conf.label}
-            </Text>
-          </View>
-        );
-      })}
+      {chips.map(([domain, count]) => (
+        <SessionPreviewChip key={domain} domain={domain} count={count} />
+      ))}
+    </View>
+  );
+}
+
+function SessionPreviewChip({
+  domain,
+  count,
+}: {
+  domain: string;
+  count: number;
+}) {
+  const theme = useDomainTheme(domain);
+  const DomainIcon = theme.icon;
+
+  return (
+    <View style={[chipStyles.chip, { backgroundColor: theme.tint }]}>
+      <DomainIcon size={12} color={theme.accent} strokeWidth={2.5} />
+      <Text style={[chipStyles.chipText, { color: theme.accent }]}>
+        {count} {domain.toLowerCase()}
+      </Text>
     </View>
   );
 }
@@ -436,7 +437,10 @@ export default function HomeScreen() {
             <Text style={[styles.todayDesc, { color: colors.textSecondary }]}>
               Ready to stretch your knowledge? Your daily session is waiting.
             </Text>
-            <SessionPreviewChips session={session} colors={colors} />
+            <SessionPreviewChips
+              session={session}
+              questions={questions}
+            />
             <TouchableOpacity
               style={[
                 styles.primaryButton,

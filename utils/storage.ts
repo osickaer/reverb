@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fetchDailyPack } from "../data/daily-packs";
+import { DailyPack, refreshDailyPack } from "../data/daily-packs";
+import { saveDailySessionResult } from "../data/daily-results";
 import { fetchQuestions } from "../data/questions";
 import { cancelDailySessionReminder } from "./notifications";
 
@@ -10,6 +11,9 @@ const STATS_KEY = "@reverb_user_stats";
 export interface DailySession {
   date: string; // YYYY-MM-DD
   mode?: "daily" | "freeplay";
+  dailyPackId?: string;
+  dailyPackTitle?: string;
+  dailyPackQuestionIds?: string[];
   status: "available" | "in-progress" | "completed";
   questionIds: string[];
   questionTypes?: Record<string, "new" | "missed" | "resurfaced">;
@@ -30,6 +34,9 @@ export interface DailySession {
 export interface CompletedSessionSnapshot {
   date: string;
   completedAt: string;
+  dailyPackId?: string;
+  dailyPackTitle?: string;
+  dailyPackQuestionIds?: string[];
   score: number;
   total: number;
   questionIds: string[];
@@ -175,42 +182,59 @@ export const saveStats = async (stats: UserStats) => {
   }
 };
 
+const questionIdsMatch = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((id, index) => id === b[index]);
+
+const buildDailySession = (today: string, dailyPack: DailyPack): DailySession => ({
+  date: today,
+  mode: "daily",
+  dailyPackId: dailyPack.id,
+  dailyPackTitle: dailyPack.title,
+  dailyPackQuestionIds: dailyPack.dailyPackQuestionIds,
+  status: "available",
+  questionIds: dailyPack.questionIds,
+  currentIndex: 0,
+  score: 0,
+  results: new Array(dailyPack.questionIds.length).fill(null),
+  selectedAnswerIndices: new Array(dailyPack.questionIds.length).fill(null),
+});
+
 export const initDailySessionIfNeeded = async (): Promise<DailySession> => {
   const session = await loadSession();
   const today = getTodayString();
+  const dailyPack = await refreshDailyPack(today);
 
-  if (session && session.date === today) {
-    return session;
+  if (
+    session &&
+    session.date === today &&
+    (!session.dailyPackId || session.dailyPackId === dailyPack.id) &&
+    questionIdsMatch(session.questionIds, dailyPack.questionIds)
+  ) {
+    const migratedSession =
+      session.questionTypes ||
+      session.dailyPackId !== dailyPack.id ||
+      session.dailyPackTitle !== dailyPack.title ||
+      !questionIdsMatch(
+        session.dailyPackQuestionIds ?? [],
+        dailyPack.dailyPackQuestionIds,
+      )
+        ? {
+            ...session,
+            dailyPackId: dailyPack.id,
+            dailyPackTitle: dailyPack.title,
+            dailyPackQuestionIds: dailyPack.dailyPackQuestionIds,
+            questionTypes: undefined,
+          }
+        : session;
+
+    if (migratedSession !== session) {
+      await saveSession(migratedSession);
+    }
+
+    return migratedSession;
   }
 
-  const stats = await loadStats();
-  const dailyPack = await fetchDailyPack(today);
-  const questionIds = dailyPack.questionIds;
-  const questionTypes = Object.fromEntries(
-    questionIds.map((questionId) => {
-      if (stats.missedQuestions.includes(questionId)) {
-        return [questionId, "missed" as const];
-      }
-
-      if (stats.correctQuestions.includes(questionId)) {
-        return [questionId, "resurfaced" as const];
-      }
-
-      return [questionId, "new" as const];
-    }),
-  );
-
-  const newSession: DailySession = {
-    date: today,
-    mode: "daily",
-    status: "available",
-    questionIds,
-    questionTypes,
-    currentIndex: 0,
-    score: 0,
-    selectedAnswerIndices: new Array(questionIds.length).fill(null),
-  };
-
+  const newSession = buildDailySession(today, dailyPack);
   await saveSession(newSession);
   return newSession;
 };
@@ -249,6 +273,7 @@ export const completeSession = async (session: DailySession) => {
   session.status = "completed";
   await saveSession(session);
   await cancelDailySessionReminder(session.date);
+  const completedAt = new Date().toISOString();
 
   const stats = await loadStats();
   stats.history[session.date] = {
@@ -257,7 +282,10 @@ export const completeSession = async (session: DailySession) => {
   };
   stats.sessionHistory[session.date] = {
     date: session.date,
-    completedAt: new Date().toISOString(),
+    completedAt,
+    dailyPackId: session.dailyPackId,
+    dailyPackTitle: session.dailyPackTitle,
+    dailyPackQuestionIds: session.dailyPackQuestionIds,
     score: session.score,
     total: session.questionIds.length,
     questionIds: session.questionIds,
@@ -269,4 +297,10 @@ export const completeSession = async (session: DailySession) => {
       new Array(session.questionIds.length).fill(null),
   };
   await saveStats(stats);
+
+  try {
+    await saveDailySessionResult(session, completedAt);
+  } catch (error) {
+    console.error("Unable to save daily result to Supabase", error);
+  }
 };

@@ -511,6 +511,9 @@ export default function SessionSummaryScreen() {
 
     const { questionIds, results, questionTypes, score } = session;
     const total = questionIds.length;
+    const hasQuestionTypes = Boolean(
+      questionTypes && questionIds.some((id) => questionTypes[id]),
+    );
 
     const typeStats: Record<
       "new" | "missed" | "resurfaced",
@@ -527,12 +530,14 @@ export default function SessionSummaryScreen() {
     > = {};
 
     questionIds.forEach((id, i) => {
-      const qType = questionTypes?.[id] ?? "new";
+      const qType = questionTypes?.[id];
       const result = results?.[i] ?? null;
       const question = questionsById.get(id);
 
-      typeStats[qType].total += 1;
-      if (result === "correct") typeStats[qType].correct += 1;
+      if (qType) {
+        typeStats[qType].total += 1;
+        if (result === "correct") typeStats[qType].correct += 1;
+      }
 
       const domain = question?.domain ?? "Unknown";
       if (!subjectStats[domain]) {
@@ -550,7 +555,15 @@ export default function SessionSummaryScreen() {
       (_, i) => results?.[i] === "incorrect",
     );
 
-    return { total, score, typeStats, subjectStats, missedIds, questionsById };
+    return {
+      total,
+      score,
+      hasQuestionTypes,
+      typeStats,
+      subjectStats,
+      missedIds,
+      questionsById,
+    };
   }, [questions, session]);
 
   if (loading || !session || !sessionData) {
@@ -568,6 +581,7 @@ export default function SessionSummaryScreen() {
   const {
     total,
     score,
+    hasQuestionTypes,
     typeStats,
     subjectStats,
     missedIds,
@@ -639,30 +653,32 @@ export default function SessionSummaryScreen() {
         </View>
 
         {/* ── 2. Question Type Breakdown ── */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border + "60",
-            },
-          ]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-            Question Breakdown
-          </Text>
-          {(["new", "missed", "resurfaced"] as const).map((type) =>
-            typeStats[type].total > 0 ? (
-              <TypeBreakdownRow
-                key={type}
-                type={type}
-                correctCount={typeStats[type].correct}
-                totalCount={typeStats[type].total}
-                colors={colors}
-              />
-            ) : null,
-          )}
-        </View>
+        {hasQuestionTypes && (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border + "60",
+              },
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+              Question Breakdown
+            </Text>
+            {(["new", "missed", "resurfaced"] as const).map((type) =>
+              typeStats[type].total > 0 ? (
+                <TypeBreakdownRow
+                  key={type}
+                  type={type}
+                  correctCount={typeStats[type].correct}
+                  totalCount={typeStats[type].total}
+                  colors={colors}
+                />
+              ) : null,
+            )}
+          </View>
+        )}
 
         {/* ── 3. Subject Performance ── */}
         <View

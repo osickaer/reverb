@@ -6,10 +6,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Brain,
   Check,
-  RotateCcw,
   Search,
-  Sparkles,
-  Target,
   X,
 } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -285,7 +282,14 @@ export default function QuizScreen() {
   const handleChoice = async (originalIndex: number) => {
     if (phase !== "answering") return;
 
-    const correct = originalIndex === question.correctIndex;
+    setSelectedOriginalIndex(originalIndex);
+    await Haptics.selectionAsync();
+  };
+
+  const handleSubmit = async () => {
+    if (phase !== "answering" || selectedOriginalIndex === null) return;
+
+    const correct = selectedOriginalIndex === question.correctIndex;
     const result: QuestionResult = correct ? "correct" : "incorrect";
 
     if (correct) {
@@ -294,8 +298,6 @@ export default function QuizScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
 
-    setSelectedOriginalIndex(originalIndex);
-
     const nextResults = [...results];
     nextResults[currentIndex] = result;
     setResults(nextResults);
@@ -303,7 +305,7 @@ export default function QuizScreen() {
       ...(session.selectedAnswerIndices ??
         new Array(session.questionIds.length).fill(null)),
     ];
-    nextSelectedAnswerIndices[currentIndex] = originalIndex;
+    nextSelectedAnswerIndices[currentIndex] = selectedOriginalIndex;
 
     const updatedSession = {
       ...session,
@@ -557,56 +559,6 @@ export default function QuizScreen() {
               {question.domain}
             </Text>
           </View>
-
-          {session?.questionTypes?.[question.id] && (
-            <View
-              style={[
-                styles.typeBadge,
-                session.questionTypes[question.id] === "new" && {
-                  backgroundColor: colors.primary + "18",
-                  borderColor: colors.primary + "30",
-                },
-                session.questionTypes[question.id] === "missed" && {
-                  backgroundColor: colors.incorrect + "18",
-                  borderColor: colors.incorrect + "30",
-                },
-                session.questionTypes[question.id] === "resurfaced" && {
-                  backgroundColor: colors.correct + "18",
-                  borderColor: colors.correct + "30",
-                },
-              ]}
-            >
-              {session.questionTypes[question.id] === "new" && (
-                <Sparkles size={14} color={colors.primary} strokeWidth={2} />
-              )}
-              {session.questionTypes[question.id] === "missed" && (
-                <Target size={14} color={colors.incorrect} strokeWidth={2} />
-              )}
-              {session.questionTypes[question.id] === "resurfaced" && (
-                <RotateCcw size={14} color={colors.correct} strokeWidth={2} />
-              )}
-              <Text
-                style={[
-                  styles.typeBadgeText,
-                  session.questionTypes[question.id] === "new" && {
-                    color: colors.primary,
-                  },
-                  session.questionTypes[question.id] === "missed" && {
-                    color: colors.incorrect,
-                  },
-                  session.questionTypes[question.id] === "resurfaced" && {
-                    color: colors.correct,
-                  },
-                ]}
-              >
-                {session.questionTypes[question.id] === "new"
-                  ? "New Question"
-                  : session.questionTypes[question.id] === "missed"
-                    ? "Previously Missed"
-                    : "Knowledge Check"}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* ── Question prompt ── */}
@@ -641,43 +593,75 @@ export default function QuizScreen() {
 
         {phase === "answering" && (
           <View style={styles.choicesContainer}>
-            {shuffledChoices.map((choiceObj, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.choiceButton,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: domainTheme.accent + "30",
-                  },
-                ]}
-                activeOpacity={0.7}
-                onPress={() => handleChoice(choiceObj.originalIndex)}
-              >
-                <View style={styles.choiceInner}>
-                  <View
-                    style={[
-                      styles.choiceLetter,
-                      { backgroundColor: domainTheme.tint },
-                    ]}
-                  >
-                    <Text
+            {shuffledChoices.map((choiceObj, index) => {
+              const isSelected =
+                selectedOriginalIndex === choiceObj.originalIndex;
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.choiceButton,
+                    {
+                      backgroundColor: isSelected
+                        ? domainTheme.tint
+                        : colors.surface,
+                      borderColor: isSelected
+                        ? domainTheme.accent
+                        : domainTheme.accent + "30",
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => handleChoice(choiceObj.originalIndex)}
+                >
+                  <View style={styles.choiceInner}>
+                    <View
                       style={[
-                        styles.choiceLetterText,
-                        { color: domainTheme.accent },
+                        styles.choiceLetter,
+                        {
+                          backgroundColor: isSelected
+                            ? domainTheme.accent
+                            : domainTheme.tint,
+                        },
                       ]}
                     >
-                      {String.fromCharCode(65 + index)}
+                      <Text
+                        style={[
+                          styles.choiceLetterText,
+                          {
+                            color: isSelected
+                              ? colors.textInverse
+                              : domainTheme.accent,
+                          },
+                        ]}
+                      >
+                        {String.fromCharCode(65 + index)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.choiceText,
+                        {
+                          color: colors.textPrimary,
+                          fontWeight: isSelected
+                            ? FontWeight.semibold
+                            : FontWeight.regular,
+                        },
+                      ]}
+                    >
+                      {choiceObj.text}
                     </Text>
+                    {isSelected && (
+                      <Check
+                        size={18}
+                        color={domainTheme.accent}
+                        strokeWidth={2.5}
+                      />
+                    )}
                   </View>
-                  <Text
-                    style={[styles.choiceText, { color: colors.textPrimary }]}
-                  >
-                    {choiceObj.text}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -851,7 +835,32 @@ export default function QuizScreen() {
         )}
       </ScrollView>
 
-      {/* ── Fixed bottom Next button (feedback phase only) ── */}
+      {/* ── Fixed bottom action button ── */}
+      {phase === "answering" && selectedOriginalIndex !== null && (
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              paddingBottom: Math.max(insets.bottom, Spacing.md),
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.nextButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+            onPress={handleSubmit}
+          >
+            <Text
+              style={[styles.nextButtonText, { color: colors.textInverse }]}
+            >
+              Submit Answer
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {phase === "feedback" && (
         <View
           style={[

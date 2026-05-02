@@ -6,7 +6,7 @@ type DailyPackQuestionRow = Tables<"daily_pack_questions">;
 type DailyPackSelectRow = Pick<DailyPackRow, "id" | "day_key" | "title">;
 type DailyPackQuestionSelectRow = Pick<
   DailyPackQuestionRow,
-  "question_id" | "position"
+  "id" | "question_id" | "position"
 >;
 
 export interface DailyPack {
@@ -14,6 +14,7 @@ export interface DailyPack {
   dayKey: string;
   title: string;
   questionIds: string[];
+  dailyPackQuestionIds: string[];
 }
 
 const packCache = new Map<string, DailyPack>();
@@ -40,7 +41,7 @@ export const fetchDailyPack = async (dayKey: string): Promise<DailyPack> => {
 
   const { data: packQuestions, error: questionsError } = await supabase
     .from("daily_pack_questions")
-    .select("question_id, position")
+    .select("id, question_id, position")
     .eq("daily_pack_id", pack.id)
     .order("position", { ascending: true })
     .returns<DailyPackQuestionSelectRow[]>();
@@ -51,9 +52,11 @@ export const fetchDailyPack = async (dayKey: string): Promise<DailyPack> => {
     );
   }
 
-  const questionIds = (packQuestions ?? [])
-    .sort((a, b) => a.position - b.position)
-    .map((row) => row.question_id);
+  const sortedPackQuestions = [...(packQuestions ?? [])].sort(
+    (a, b) => a.position - b.position,
+  );
+  const questionIds = sortedPackQuestions.map((row) => row.question_id);
+  const dailyPackQuestionIds = sortedPackQuestions.map((row) => row.id);
 
   if (questionIds.length === 0) {
     throw new Error(`Daily pack ${dayKey} has no questions.`);
@@ -64,6 +67,7 @@ export const fetchDailyPack = async (dayKey: string): Promise<DailyPack> => {
     dayKey: pack.day_key,
     title: pack.title,
     questionIds,
+    dailyPackQuestionIds,
   };
 
   packCache.set(dayKey, dailyPack);
