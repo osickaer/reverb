@@ -1,18 +1,25 @@
 import { ScreenContainer } from "@/components/screen-container";
+import { SocialProfileModal } from "@/components/social-profile-modal";
 import { useAuth } from "@/contexts/auth-context";
 import { useThemeColors } from "@/contexts/theme-context";
-import { useRouter } from "expo-router";
+import { fetchCurrentUserProfile, Profile } from "@/data/profiles";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ChevronRight,
   Settings as SettingsIcon,
   UserRound,
 } from "lucide-react-native";
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import {
   FontSize,
   FontWeight,
-  LineHeight,
   Radius,
   Shadow,
   Spacing,
@@ -22,7 +29,35 @@ export default function ProfileTabScreen() {
   const colors = useThemeColors();
   const { session } = useAuth();
   const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const email = session?.user.email ?? "Signed in";
+
+  const loadProfile = useCallback(async () => {
+    setIsProfileLoading(true);
+    setProfileError(null);
+
+    try {
+      const currentProfile = await fetchCurrentUserProfile();
+      setProfile(currentProfile);
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your social profile.",
+      );
+    } finally {
+      setIsProfileLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile]),
+  );
 
   return (
     <ScreenContainer scrollable style={styles.contentContainer}>
@@ -46,20 +81,61 @@ export default function ProfileTabScreen() {
         <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>
           Profile
         </Text>
-        <Text style={[styles.pageSubtitle, { color: colors.textSecondary }]}>
-          This is where profile customizations, preferences, and account-level
-          controls can grow over time.
-        </Text>
-        <View
-          style={[
-            styles.emailBadge,
-            { backgroundColor: colors.background, borderColor: colors.border },
-          ]}
-        >
-          <Text style={[styles.emailText, { color: colors.textSecondary }]}>
-            {email}
-          </Text>
-        </View>
+
+        {isProfileLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading profile
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.profileDetails}>
+            <ProfileField label="Email" value={email} />
+            {profile ? (
+              <>
+                <ProfileField
+                  label="Display Name"
+                  value={profile.display_name}
+                />
+                <ProfileField label="Username" value={`${profile.username}`} />
+              </>
+            ) : (
+              <Text
+                style={[
+                  styles.socialPromptText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                To enable social features, create a social profile.
+              </Text>
+            )}
+            {profileError && (
+              <Text style={[styles.errorText, { color: colors.incorrect }]}>
+                {profileError}
+              </Text>
+            )}
+            {!profile && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsCreateModalVisible(true)}
+                style={[
+                  styles.primaryButton,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.primaryButtonText,
+                    { color: colors.textInverse },
+                  ]}
+                >
+                  Create social profile
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
@@ -77,24 +153,47 @@ export default function ProfileTabScreen() {
         onPress={() => router.push("/profile-settings")}
       >
         <View
-          style={[
-            styles.menuIconWrap,
-            { backgroundColor: colors.background },
-          ]}
+          style={[styles.menuIconWrap, { backgroundColor: colors.background }]}
         >
-          <SettingsIcon size={18} color={colors.textPrimary} strokeWidth={2.2} />
+          <SettingsIcon
+            size={18}
+            color={colors.textPrimary}
+            strokeWidth={2.2}
+          />
         </View>
         <View style={styles.menuCopy}>
           <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>
             Settings
           </Text>
-          <Text style={[styles.menuDescription, { color: colors.textSecondary }]}>
+          <Text
+            style={[styles.menuDescription, { color: colors.textSecondary }]}
+          >
             Notifications and debug tools.
           </Text>
         </View>
         <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2.2} />
       </TouchableOpacity>
+      <SocialProfileModal
+        visible={isCreateModalVisible}
+        onClose={() => setIsCreateModalVisible(false)}
+        onCreated={setProfile}
+      />
     </ScreenContainer>
+  );
+}
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  const colors = useThemeColors();
+
+  return (
+    <View style={styles.profileField}>
+      <Text style={[styles.profileFieldLabel, { color: colors.textTertiary }]}>
+        {label}
+      </Text>
+      <Text style={[styles.profileFieldValue, { color: colors.textPrimary }]}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -124,21 +223,54 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
   },
-  pageSubtitle: {
-    fontSize: FontSize.base,
-    lineHeight: LineHeight.normal,
-    marginTop: Spacing.sm,
-  },
-  emailBadge: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
     marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
   },
-  emailText: {
+  loadingText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
+  },
+  profileDetails: {
+    width: "100%",
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  profileField: {
+    paddingVertical: Spacing.sm,
+  },
+  profileFieldLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    textTransform: "uppercase",
+  },
+  profileFieldValue: {
+    fontSize: FontSize.base,
+    fontWeight: FontWeight.semibold,
+    marginTop: Spacing.xs,
+  },
+  socialPromptText: {
+    fontSize: FontSize.base,
+    marginTop: Spacing.sm,
+  },
+  errorText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+    marginTop: Spacing.md,
+  },
+  primaryButton: {
+    minHeight: 48,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.base,
+    marginTop: Spacing.lg,
+  },
+  primaryButtonText: {
+    fontSize: FontSize.base,
+    fontWeight: FontWeight.semibold,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
