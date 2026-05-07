@@ -287,35 +287,40 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadHomeData = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    try {
+      const [s, freeplay, st, loadedQuestions] = await Promise.all([
+        initDailySessionIfNeeded(),
+        loadFreeplaySession(),
+        loadStats(),
+        fetchQuestions(),
+      ]);
+      await syncDailySessionReminder({
+        dateKey: s.date,
+        isCompleted: s.status === "completed",
+      });
+      setSession(s);
+      setFreeplaySession(freeplay);
+      setStats(st);
+      setQuestions(loadedQuestions);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      const fetch = async () => {
-        setLoading(true);
-        const [s, freeplay, st, loadedQuestions] = await Promise.all([
-          initDailySessionIfNeeded(),
-          loadFreeplaySession(),
-          loadStats(),
-          fetchQuestions(),
-        ]);
-        await syncDailySessionReminder({
-          dateKey: s.date,
-          isCompleted: s.status === "completed",
-        });
-        if (active) {
-          setSession(s);
-          setFreeplaySession(freeplay);
-          setStats(st);
-          setQuestions(loadedQuestions);
-          setLoading(false);
-        }
-      };
-      fetch();
-      return () => {
-        active = false;
-      };
-    }, []),
+      loadHomeData(true);
+    }, [loadHomeData]),
   );
 
   // Derived stats
@@ -378,7 +383,12 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScreenContainer scrollable style={styles.content}>
+    <ScreenContainer
+      scrollable
+      refreshing={refreshing}
+      onRefresh={() => loadHomeData(false)}
+      style={styles.content}
+    >
       {/* ── Streak Header ── */}
       <View style={styles.greetingSection}>
         {/* Top row: greeting + theme toggle + streak flame */}

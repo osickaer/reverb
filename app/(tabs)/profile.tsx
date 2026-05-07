@@ -31,12 +31,17 @@ export default function ProfileTabScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const email = session?.user.email ?? "Signed in";
 
-  const loadProfile = useCallback(async () => {
-    setIsProfileLoading(true);
+  const loadProfile = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsProfileLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     setProfileError(null);
 
     try {
@@ -49,7 +54,11 @@ export default function ProfileTabScreen() {
           : "Unable to load your social profile.",
       );
     } finally {
-      setIsProfileLoading(false);
+      if (showLoading) {
+        setIsProfileLoading(false);
+      } else {
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -60,7 +69,12 @@ export default function ProfileTabScreen() {
   );
 
   return (
-    <ScreenContainer scrollable style={styles.contentContainer}>
+    <ScreenContainer
+      scrollable
+      refreshing={refreshing}
+      onRefresh={() => loadProfile(false)}
+      style={styles.contentContainer}
+    >
       <View
         style={[
           styles.heroCard,

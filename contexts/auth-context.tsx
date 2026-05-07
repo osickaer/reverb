@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { setStorageUserId } from "@/utils/storage";
 
 interface AuthContextValue {
   session: Session | null;
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      setStorageUserId(data.session?.user.id ?? null);
       setSession(data.session);
       setIsLoading(false);
     });
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setStorageUserId(nextSession?.user.id ?? null);
       setSession(nextSession);
       setIsLoading(false);
     });

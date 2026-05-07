@@ -1,13 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const debugReverbStorage = async () => {
-  const session = await AsyncStorage.getItem("@reverb_daily_session");
-  const stats = await AsyncStorage.getItem("@reverb_user_stats");
+const REVERB_STORAGE_PREFIXES = [
+  "@reverb_daily_session",
+  "@reverb_freeplay_session",
+  "@reverb_user_stats",
+];
 
-  console.log("SESSION RAW:", session);
-  console.log("STATS RAW:", stats);
-  console.log("SESSION PARSED:", session ? JSON.parse(session) : null);
-  console.log("STATS PARSED:", stats ? JSON.parse(stats) : null);
+const getReverbStorageKeys = async () => {
+  const keys = await AsyncStorage.getAllKeys();
+
+  return keys.filter((key) =>
+    REVERB_STORAGE_PREFIXES.some(
+      (prefix) => key === prefix || key.startsWith(`${prefix}:`),
+    ),
+  );
+};
+
+export const debugReverbStorage = async () => {
+  const keys = await getReverbStorageKeys();
+  const values = await AsyncStorage.multiGet(keys);
+
+  console.log("REVERB STORAGE:", values);
 };
 
 export const listAllStorage = async () => {
@@ -17,9 +30,7 @@ export const listAllStorage = async () => {
 };
 
 export const clearReverbStorage = async () => {
-  await AsyncStorage.multiRemove([
-    "@reverb_daily_session",
-    "@reverb_user_stats",
-  ]);
+  const keys = await getReverbStorageKeys();
+  await AsyncStorage.multiRemove(keys);
   console.log("Cleared Reverb storage");
 };

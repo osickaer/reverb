@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "@/lib/supabase";
 import { DailyPack, refreshDailyPack } from "../data/daily-packs";
 import { saveDailySessionResult } from "../data/daily-results";
 import { fetchQuestions } from "../data/questions";
@@ -7,6 +8,25 @@ import { cancelDailySessionReminder } from "./notifications";
 const SESSION_KEY = "@reverb_daily_session";
 const FREEPLAY_SESSION_KEY = "@reverb_freeplay_session";
 const STATS_KEY = "@reverb_user_stats";
+
+let scopedUserId: string | null | undefined;
+
+export const setStorageUserId = (userId: string | null) => {
+  scopedUserId = userId;
+};
+
+const getScopedStorageKey = async (baseKey: string): Promise<string> => {
+  if (scopedUserId !== undefined) {
+    return `${baseKey}:${scopedUserId ?? "signed-out"}`;
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const userId = session?.user.id ?? "signed-out";
+
+  return `${baseKey}:${userId}`;
+};
 
 export interface DailySession {
   date: string; // YYYY-MM-DD
@@ -84,7 +104,9 @@ export const calculateCurrentStreak = (
 
 export const loadSession = async (): Promise<DailySession | null> => {
   try {
-    const json = await AsyncStorage.getItem(SESSION_KEY);
+    const json = await AsyncStorage.getItem(
+      await getScopedStorageKey(SESSION_KEY),
+    );
     return json ? JSON.parse(json) : null;
   } catch (e) {
     console.error(e);
@@ -94,7 +116,10 @@ export const loadSession = async (): Promise<DailySession | null> => {
 
 export const saveSession = async (session: DailySession) => {
   try {
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    await AsyncStorage.setItem(
+      await getScopedStorageKey(SESSION_KEY),
+      JSON.stringify(session),
+    );
   } catch (e) {
     console.error(e);
   }
@@ -102,7 +127,9 @@ export const saveSession = async (session: DailySession) => {
 
 export const loadFreeplaySession = async (): Promise<DailySession | null> => {
   try {
-    const json = await AsyncStorage.getItem(FREEPLAY_SESSION_KEY);
+    const json = await AsyncStorage.getItem(
+      await getScopedStorageKey(FREEPLAY_SESSION_KEY),
+    );
     return json ? JSON.parse(json) : null;
   } catch (e) {
     console.error(e);
@@ -112,7 +139,10 @@ export const loadFreeplaySession = async (): Promise<DailySession | null> => {
 
 export const saveFreeplaySession = async (session: DailySession) => {
   try {
-    await AsyncStorage.setItem(FREEPLAY_SESSION_KEY, JSON.stringify(session));
+    await AsyncStorage.setItem(
+      await getScopedStorageKey(FREEPLAY_SESSION_KEY),
+      JSON.stringify(session),
+    );
   } catch (e) {
     console.error(e);
   }
@@ -144,7 +174,7 @@ export const startFreeplaySession = async (): Promise<DailySession> => {
 
 export const loadStats = async (): Promise<UserStats> => {
   try {
-    const json = await AsyncStorage.getItem(STATS_KEY);
+    const json = await AsyncStorage.getItem(await getScopedStorageKey(STATS_KEY));
     if (json) {
       const parsed = JSON.parse(json);
       return {
@@ -176,7 +206,10 @@ export const loadStats = async (): Promise<UserStats> => {
 
 export const saveStats = async (stats: UserStats) => {
   try {
-    await AsyncStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    await AsyncStorage.setItem(
+      await getScopedStorageKey(STATS_KEY),
+      JSON.stringify(stats),
+    );
   } catch (e) {
     console.error(e);
   }

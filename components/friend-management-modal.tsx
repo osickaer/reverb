@@ -26,7 +26,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -76,6 +76,7 @@ export function FriendManagementModal({
   const [busyFriendshipId, setBusyFriendshipId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const incomingRequestCountChangeRef = useRef(onIncomingRequestCountChange);
 
   const normalizedUsername = useMemo(
     () => username.trim().toLowerCase().replace(/^@/, ""),
@@ -83,6 +84,10 @@ export function FriendManagementModal({
   );
   const canSendRequest =
     normalizedUsername.length >= 3 && !isSending && !isLoading;
+
+  useEffect(() => {
+    incomingRequestCountChangeRef.current = onIncomingRequestCountChange;
+  }, [onIncomingRequestCountChange]);
 
   const loadFriendships = useCallback(async () => {
     setIsLoading(true);
@@ -93,7 +98,7 @@ export function FriendManagementModal({
       setFriends(snapshot.friends);
       setIncomingRequests(snapshot.incomingRequests);
       setOutgoingRequests(snapshot.outgoingRequests);
-      onIncomingRequestCountChange?.(snapshot.incomingRequests.length);
+      incomingRequestCountChangeRef.current?.(snapshot.incomingRequests.length);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -103,7 +108,7 @@ export function FriendManagementModal({
     } finally {
       setIsLoading(false);
     }
-  }, [onIncomingRequestCountChange]);
+  }, []);
 
   useEffect(() => {
     if (!visible) {

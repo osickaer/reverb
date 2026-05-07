@@ -515,27 +515,32 @@ export default function ProgressTabScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProgressData = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    try {
+      const [userStats, loadedQuestions] = await Promise.all([
+        loadStats(),
+        fetchQuestions(),
+      ]);
+      setStats(userStats);
+      setQuestions(loadedQuestions);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-      const fetchStats = async () => {
-        setLoading(true);
-        const [userStats, loadedQuestions] = await Promise.all([
-          loadStats(),
-          fetchQuestions(),
-        ]);
-        if (isActive) {
-          setStats(userStats);
-          setQuestions(loadedQuestions);
-          setLoading(false);
-        }
-      };
-      fetchStats();
-      return () => {
-        isActive = false;
-      };
-    }, []),
+      loadProgressData(true);
+    }, [loadProgressData]),
   );
 
   if (loading || !stats) {
@@ -561,7 +566,12 @@ export default function ProgressTabScreen() {
   const domainStats = buildDomainStats(stats, questionsById);
 
   return (
-    <ScreenContainer scrollable style={styles.contentContainer}>
+    <ScreenContainer
+      scrollable
+      refreshing={refreshing}
+      onRefresh={() => loadProgressData(false)}
+      style={styles.contentContainer}
+    >
       {/* ── Top stat cards ── */}
       <View style={styles.metricsRow}>
         <View style={[styles.metricCard, { backgroundColor: colors.surface }]}>

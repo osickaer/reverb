@@ -1,5 +1,11 @@
 import React from 'react';
-import { ScrollView, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  ViewStyle,
+  StyleProp,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/contexts/theme-context';
 
@@ -13,6 +19,10 @@ interface ScreenContainerProps {
   backgroundColor?: string;
   /** Edges to apply safe area padding to */
   edges?: ('top' | 'right' | 'bottom' | 'left')[];
+  /** Pull-to-refresh state for scrollable screens */
+  refreshing?: boolean;
+  /** Pull-to-refresh handler for scrollable screens */
+  onRefresh?: () => void | Promise<void>;
 }
 
 export function ScreenContainer({
@@ -21,6 +31,8 @@ export function ScreenContainer({
   scrollable = false,
   backgroundColor,
   edges = ['top'],
+  refreshing = false,
+  onRefresh,
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
@@ -31,6 +43,18 @@ export function ScreenContainer({
       <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: bg }]}>
         <ScrollView
           style={styles.scroll}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  void onRefresh();
+                }}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            ) : undefined
+          }
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom },
