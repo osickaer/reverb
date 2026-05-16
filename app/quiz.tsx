@@ -1,4 +1,5 @@
 import { ScreenContainer } from "@/components/screen-container";
+import { QuestionFeedbackControls } from "@/components/question-feedback-controls";
 import { useDomainTheme } from "@/constants/domain-themes";
 import { useThemeColors } from "@/contexts/theme-context";
 import * as Haptics from "expo-haptics";
@@ -831,6 +832,8 @@ export default function QuizScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            <QuestionFeedbackControls questionId={question.id} />
           </View>
         )}
       </ScrollView>
