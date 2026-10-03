@@ -1,6 +1,8 @@
-# Welcome to your Expo app 👋
+# Reverb
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Reverb is a daily knowledge app built around five quick questions, short explanations, and revisiting what you’ve learned. Daily sessions combine new material with questions you previously missed and older topics worth reviewing. The app includes progress tracking, streaks, and extra practice outside the daily session.
+
+Built with React Native, Expo, TypeScript, and Supabase authentication, with progress stored locally on the device. Reverb reached a small TestFlight pilot before development was paused.
 
 ## Get started
 
